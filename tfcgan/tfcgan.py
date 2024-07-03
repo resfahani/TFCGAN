@@ -7,7 +7,7 @@ import numpy as np
 import librosa
 from scipy.signal import butter, filtfilt
 from scipy.signal.windows import tukey
-from numba import prange
+# from numba import prange
 
 # TODO: check all single-letter variables and params and try to provide a more
 #  meaningful name. Pyhon code conventions say: variables and function names
@@ -91,27 +91,19 @@ def pra_admm(tf, rho, eps, pr_int=10, ab=0):
     return x
 
 
-def compute_prox(y, r, rho, eps, ab):
+def compute_prox(y, r, rho, eps, ab: int):
     # Code modified from https://github.com//phvial/PRBregDiv
     eps = np.min(r) + eps
     if ab == 1:
         v = (rho * y + 2 * r) / (rho + 2)
-        
-    if ab == 2:
+    elif ab == 2:
         b = 1 / (r + eps) - rho * y
         delta = np.square(b) + 4 * rho
         v = (-b + np.sqrt(delta)) / (2 * rho)
+    else:
+        raise ValueError('compute_prox `ab` parameter should be in (1, 2)')
 
-    # FIXME: what if v not in (0, 1)? test with different ab results
-    #  in the calling functions
     return v
-
-
-# TODO: this function is not used. remove?
-# def my_STFT(x):
-#     X = librosa.stft(
-#       x, hop_length=hop_length, win_length=win_length, n_fft = n_fft)[:128,:248]
-#     return X
 
 
 def butter_bandpass(lowcut, highcut, fs, order=4):
@@ -210,8 +202,8 @@ class TFCGAN:
             tf = self.model.predict(
                 [label[:, 0], label[:, 1], label[:, 2],  noise]
             )[:, :, :, 0]
-
-        # FIXME what if self.mtype is not in (0, 1)?
+        else:
+            raise ValueError('TFCGAN `mtype` should be in (0, 1)')
 
         tf = (tf + 1) / 2
         tf = (tf * (self.scalemax-self.scalemin)) + self.scalemin
@@ -220,7 +212,6 @@ class TFCGAN:
         return tf
     
     # Calculate the TF, Time-history, and FAS
-    #@nb.jit(parallel=True)  # TODO: looks like some parallel processing decorator. Is it used? otherwise remove
     def maker(self,
               mag,
               dis,
@@ -237,8 +228,8 @@ class TFCGAN:
         :param mag: Magnitude value
         :param dis: Distance value
         :param vs: Vs30 value
-        :param ngen: Number of time-history generatation
-        :param pr_int: Number of iteration in Phase retireval
+        :param ngen: Number of generated time-histories
+        :param pr_int: Number of iteration in Phase retrieval
         :param mode: Type of Phase retireval algorithm
             "GLA": Griffin-Lim Algorithm
             "ADMM": ADMM algorithm for phase retireval based on Bregman
@@ -249,10 +240,12 @@ class TFCGAN:
 
         :return: a 4-elem,ent tuple  # FIXME: order mismatch? (see code below)
             tx: time vector
-            freq = frequency veoctor
-            xh: Generated time-hisory matrix
+            freq = frequency vector
+            xh: Generated time-history matrix
             S: Descaled Time-frequency representation matrix
         """
+        if mode not in ("ADMM", "GLA"):
+            raise ValueError('maker `mode` parameter should be in ("ADMM", "GLA")')
 
         noise = np.random.normal(0, 1, (ngen, self.noiseint))
         
@@ -262,15 +255,14 @@ class TFCGAN:
         # x = np.empty((ngen, 4000))
         # x[:] = 0
         x = np.zeros((ngen, 4000))
-        
-        for i in prange(ngen):
-            if mode == "ADMM":
+
+        if mode == "ADMM":
+            for i in range(ngen):
                 x[i, :] = pra_admm(s[i, :, :], rho, eps, pr_int, ab)
-            elif mode == "GLA":
+        else:  # "GLA"
+            for i in range(ngen):
                 x[i, :] = pra_gla(s[i, :, :], pr_int)
 
-            # FIXME: again, what if mode is neither of the two?
-                
         freq, xh = self.fft(x)
         tx = np.arange(x.shape[1]) * self.dt
         
@@ -287,4 +279,3 @@ class TFCGAN:
         freq = np.linspace(0, 0.5, n)/self.dt
         
         return freq, lp.T
-
