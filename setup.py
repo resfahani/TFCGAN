@@ -12,14 +12,15 @@ setup(
     python_requires='>=3.10.0',
     # Minimal requirements, for a complete list see requirements-*.txt
     install_requires=[
-        'tensorflow>=2.16.1',  # TODO check dependencies cleanup and remove unnecessary
-        'numba>=0.59.1',
+        'numpy==1.26.1',
+        'tensorflow==2.11.1',
+        # 'numba>=0.59.1',
         'librosa>=0.10.2'
     ],
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
     # for example:
-    # $ pip install -e .[jupyter,test]
+    # $ pip install -e ".[dev]"
     extras_require={
         # 'jupyter': [
         #     'jupyter>=1.1.0'
@@ -32,7 +33,7 @@ setup(
     author_email='',  # FIXME: what to provide?
     maintainer='Reza D. D. Esfahani',
     maintainer_email='',
-    classifiers=(
+    classifiers=[
         'Development Status :: 1 - Beta',
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',
@@ -40,7 +41,7 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
         'Topic :: Scientific/Engineering',
-    ),
+    ],
     keywords=[
         "seismic waveform",
         # TODO add keywords

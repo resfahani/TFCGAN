@@ -30,24 +30,24 @@ def create_parser():
     parser.add_argument(
         "-m",
         type=float,
-        metavar="magnitude",
+        dest="magnitude",
         help='The seismic event magnitude'
     )
     parser.add_argument(
         "-v",
         type=float,
-        metavar="vs30",
+        dest="vs30",
         help='The site Vs30'
     )
     parser.add_argument(
         "-d",
         type=float,
-        metavar="distance",
+        dest="distance",
         help='The site distance (km)')
     parser.add_argument(
         "-n",
         type=int,
-        metavar="number_of_waveforms",
+        dest="number_of_waveforms",
         help='number of generated synthetic waveforms'
     )
     parser.add_argument(
@@ -74,16 +74,17 @@ def run(arguments):
         try:
             if verbose:
                 print('Creating waveforms')
-            tfc = TFCGAN(args.output).maker(
+            tfc = TFCGAN().maker(
                 args.magnitude,
                 args.distance,
                 args.vs30,
                 args.number_of_waveforms)
-            sys.exit(0)
+            output_dir = args.output
+            # sys.exit(0)
         except Exception as exc:
             # raise
             print(f'ERROR: {str(exc)}', file=sys.stderr)
-            sys.exit(1)
+            # sys.exit(1)
 
 
 if __name__ == '__main__':

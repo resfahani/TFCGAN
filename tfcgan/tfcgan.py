@@ -1,7 +1,7 @@
 """
 core module
 """
-
+import os
 from tensorflow import keras
 import numpy as np
 import librosa
@@ -142,7 +142,7 @@ def my_filter(y, fmin, fmax, samp):  # FIXME: better function name
 class TFCGAN:
     
     def __init__(self,
-                 dirc,
+                 dirc=None,
                  scalemin=-10,
                  scalemax=2.638887,
                  pwr=1,
@@ -162,7 +162,9 @@ class TFCGAN:
             0: insert labels (Mw, R, Vs30) as a vector
             1: inset labels (Mw, R, Vs30) separately.
         """
-        
+        if dirc is None:
+            dirc = os.path.abspath(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), 'model'))
         self.dirc = dirc  # Model directory
         self.pwr = pwr  # Power or absolute
         self.scalemin = scalemin * self.pwr  # Scaling (clipping the dynamic range)
@@ -173,7 +175,7 @@ class TFCGAN:
         # FIXME: do we just need Keras to load a model? is there a way maybe
         #  to just install keras and not the whole tensorflow package?
         self.model = keras.models.load_model(self.dirc)
-        self.mtype = mtype
+        # self.mtype = mtype
         
     # Generate TFR
     def generator(self, mag, dis, vs, noise, ngen=1):
@@ -184,7 +186,7 @@ class TFCGAN:
         :param dis: Distance value
         :param vs: Vs30 value
         :param noise: TODO provide doc
-        :param ngen: Number of generatation FIXME typo?
+        :param ngen: Number of generated waveforms
         
         :return: Descaled Time-frequency representation
         
@@ -196,14 +198,15 @@ class TFCGAN:
         
         label = np.concatenate([mag, dis, vs], axis=1)
 
-        if self.mtype == 0:
-            tf = self.model.predict([label,  noise])[:, :, :, 0]
-        elif self.mtype == 1:
-            tf = self.model.predict(
-                [label[:, 0], label[:, 1], label[:, 2],  noise]
-            )[:, :, :, 0]
-        else:
-            raise ValueError('TFCGAN `mtype` should be in (0, 1)')
+        tf = self.model.predict([label, noise])[:, :, :, 0]
+        # if self.mtype == 0:
+        #     tf = self.model.predict([label,  noise])[:, :, :, 0]
+        # elif self.mtype == 1:
+        #     tf = self.model.predict(
+        #         [label[:, 0], label[:, 1], label[:, 2],  noise]
+        #     )[:, :, :, 0]
+        # else:
+        #     raise ValueError('TFCGAN `mtype` should be in (0, 1)')
 
         tf = (tf + 1) / 2
         tf = (tf * (self.scalemax-self.scalemin)) + self.scalemin
