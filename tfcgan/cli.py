@@ -2,7 +2,6 @@
 
 @author: Riccardo Z. <rizac@gfz-potsdam.de>
 """
-import math
 import sys
 import os
 import warnings
@@ -16,6 +15,7 @@ import numpy as np
 # ArgumentParser code
 #####################
 
+
 def create_parser():
     parser = argparse.ArgumentParser(
         description="TFCGAN is a generator of synthetic seismic waveforms using "
@@ -27,8 +27,15 @@ def create_parser():
         'output',  # <- positional argument
         # dest='output',
         type=str,
-        metavar='output_directory',
-        help="output directory")
+        help=f'The output file. The data will be saved as matrix where each '
+             f'row represent a time history (waveform) with its point arranged'
+             f'in columns. The file format can be specified by its extension: '
+             f'.txt and .gx -> save as text (less efficient '
+             f'but can be read outside Python), otherwise save file as '
+             f'.npy (numpy format). Numpy files can be opened in Python via: '
+             f'data=numpy.load(<output>)',
+        metavar="output file"
+    )
     # add argument to ArgParse:
     parser.add_argument(
         "-m",
@@ -46,7 +53,8 @@ def create_parser():
         "-d",
         type=float,
         dest="distance",
-        help='The site distance (km)')
+        help='The site distance (km)'
+    )
     parser.add_argument(
         "-n",
         type=int,
@@ -56,14 +64,18 @@ def create_parser():
     parser.add_argument(
         "-q",
         action='store_true',
-        help='quiet mode: overwrite existing output file(s) without prompting and '
-             'do not print info'
+        help='quiet mode: overwrite existing output file(s) without asking '
+             'and do not print info'
     )
-
     return parser
 
 
-def run(arguments):
+def run(arguments=None):
+    """
+    Run the main routine from the command line
+
+    :param arguments: used only for testing, otherwise it defaults to sys.argv[1:]
+    """
     parser = create_parser()
     with warnings.catch_warnings(record=False) as wrn:  # noqa
         # Cause all warnings to always be triggered.
@@ -83,10 +95,14 @@ def run(arguments):
                 args.distance,
                 args.vs30,
                 args.number_of_waveforms)
-            output_dir = args.output
+            output_file = args.output
+            f_format = os.path.splitext(os.path.basename(output_file))[1].lower()
+            if f_format not in ('.npy', '.txt', '.gz'):
+                f_format = '.npy'
+                output_file += f_format
+            output_dir = os.path.dirname(output_file)
             if not os.path.isdir(output_dir):
                 raise FileNotFoundError(output_dir)
-            output_file = os.path.join(output_dir, 'tfcgan-dt0.01.npy')
             if verbose and os.path.isfile(output_file):
                 answer = input('output file exists. Overwrite (y=yes)?')
                 if answer != 'y':
@@ -96,7 +112,10 @@ def run(arguments):
             x_hist = tfc[4]
             if verbose:
                 print(f'Saving waveforms to {output_file}')
-            np.save(file=output_file, arr=x_hist)
+            if f_format == '.npy':
+                np.save(file=output_file, arr=x_hist)
+            else:
+                np.savetxt(fname=output_file, X=x_hist)
             # sys.exit(0)
         except Exception as exc:
             # raise
@@ -105,4 +124,4 @@ def run(arguments):
 
 
 if __name__ == '__main__':
-    run(sys.argv[1:])
+    run()

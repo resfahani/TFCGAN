@@ -87,7 +87,7 @@ def pra_admm(tf, rho, eps, pr_int=10, ab=0):
         )[:128, :248]
         a = a + rho * (x_hat - z)
         x = my_filter(x, 0.05, 48, 100)
-        
+
     return x
 
 
@@ -269,7 +269,7 @@ class TFCGAN:
         freq, xh = self.fft(x)
         tx = np.arange(x.shape[1]) * self.dt
         
-        return tx, freq, xh.squeeze(), s, x.squeeze()  # FIXME: see docstring return
+        return tx, freq, xh, s, x  # FIXME: see docstring return
     
     def fft(self, s):
         # non-normalized fft without any norm specification
