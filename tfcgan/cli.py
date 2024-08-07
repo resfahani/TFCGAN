@@ -2,11 +2,14 @@
 
 @author: Riccardo Z. <rizac@gfz-potsdam.de>
 """
+import math
 import sys
+import os
 import warnings
 import argparse
 from argparse import RawTextHelpFormatter
 
+import numpy as np
 
 
 #####################
@@ -53,7 +56,8 @@ def create_parser():
     parser.add_argument(
         "-q",
         action='store_true',
-        help='quiet mode (no verbosity)'
+        help='quiet mode: overwrite existing output file(s) without prompting and '
+             'do not print info'
     )
 
     return parser
@@ -80,10 +84,23 @@ def run(arguments):
                 args.vs30,
                 args.number_of_waveforms)
             output_dir = args.output
+            if not os.path.isdir(output_dir):
+                raise FileNotFoundError(output_dir)
+            output_file = os.path.join(output_dir, 'tfcgan-dt0.01.npy')
+            if verbose and os.path.isfile(output_file):
+                answer = input('output file exists. Overwrite (y=yes)?')
+                if answer != 'y':
+                    if verbose:
+                        print('Aborted by user')
+                    sys.exit(0)
+            x_hist = tfc[4]
+            if verbose:
+                print(f'Saving waveforms to {output_file}')
+            np.save(file=output_file, arr=x_hist)
             # sys.exit(0)
         except Exception as exc:
             # raise
-            print(f'ERROR: {str(exc)}', file=sys.stderr)
+            print(f'{exc.__class__.__name__}: {str(exc)}', file=sys.stderr)
             # sys.exit(1)
 
 
