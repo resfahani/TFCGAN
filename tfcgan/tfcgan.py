@@ -10,7 +10,6 @@ from scipy.signal import butter, sosfiltfilt
 import typing as T
 
 
-
 # from numba import prange
 
 # TODO: check all single-letter variables and params and try to provide a more
@@ -30,12 +29,14 @@ n_fft = 256  # nfft
 
 
 class STFT(signal.ShortTimeFFT):
-    def __init__(self, 
-                 sr: int, 
-                 window: int, 
-                 noverlap: int,
-                 nfft: int,
-                 ) -> None:
+    def __init__(
+            self, 
+            sr: int, 
+            window: int, 
+            hoplength: int,
+            nfft: int,
+            ) -> None:
+
         """
         Short Time Fourier Transform
 
@@ -48,42 +49,47 @@ class STFT(signal.ShortTimeFFT):
 
         self.sr = sr
         self.window = window
-        self.noverlap = noverlap
+        self.hoplength = hoplength
         self.nfft = nfft
 
 
-    def stft(self, 
-             signal: np.ndarray
-             ) -> np.ndarray:
+    def stft(
+            self, 
+            signal: np.ndarray
+            ) -> np.ndarray:
         
         """
         forward Short Time Fourier Transform
 
         """
         #self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
-        self.f, self.t, self.Zxx = self.stft(signal, self.fs, self.window, self.noverlap, self.nfft)
+        self.freq, self.time, self.tfr = self.stft(signal, self.fs, self.window, self.hoplength, self.nfft)
 
-    def istft(self,
-              tfr: np.ndarray,
-              ) -> np.ndarray:
+        return self.freq, self.time, self.tfr
+    
+    def istft(
+            self,
+            tfr: np.ndarray,
+            ) -> np.ndarray:
         
         """
         inverse Short Time Fourier Transform
 
         """
 
-        _, x = self.istft(tfr, self.fs, self.window, self.noverlap, self.nfft)
+        _, rec_signal = self.istft(tfr, self.fs, self.window, self.hoplength, self.nfft)
         
-        return x
+        return rec_signal
     
+
 # ###############
 # Phase retrieval
 # ###############
 
-
-def phase_retrieval_gla(tfr_m: np.ndarray,
-            pr_int: np.int = 10,
-            ) -> np.ndarray:
+def phase_retrieval_gla(
+        tfr_m: np.ndarray,
+        pr_int: np.int = 10,
+        ) -> np.ndarray:
 
     """ 
     phase retrieval algorithm based on Griffin-Lim Algorithm
@@ -118,12 +124,13 @@ def phase_retrieval_gla(tfr_m: np.ndarray,
     return recon_sig
 
 
-def pra_admm(tf: np.ndarray, 
-             rho, 
-             eps, 
-             pr_int: int = 10, 
-             ab=0
-             ) -> np.ndarray: 
+def pra_admm(
+        tf: np.ndarray, 
+        rho, 
+        eps, 
+        pr_int: int = 10, 
+        ab=0,
+        ) -> np.ndarray: 
     
     """
     phase retrieval algorithm based on ADMM algorithm for phase retrieval based on Bregman divergences
@@ -166,12 +173,13 @@ def pra_admm(tf: np.ndarray,
     return x
 
 
-def compute_prox(y, 
-                 r, 
-                 rho, 
-                 eps, 
-                 ab: int
-                 ) -> np.ndarray:
+def compute_prox(
+        y, 
+        r, 
+        rho, 
+        eps, 
+        ab: int,
+        ) -> np.ndarray:
     
     """
     # Code modified from https://github.com//phvial/PRBregDiv
@@ -192,13 +200,14 @@ def compute_prox(y,
 
 
 
-def filter_data(data: np.ndarray, 
-                freqmin: T.Union[float, int, None],
-                freqmax: T.Union[float, int, None],
-                sr: int, 
-                filtertype: str = 'bp',
-                filter_order: int = 10,
-                ) -> np.ndarray:
+def filter_data(
+        data: np.ndarray, 
+        freqmin: T.Union[float, int, None],
+        freqmax: T.Union[float, int, None],
+        sr: int, 
+        filtertype: str = 'bp',
+        filter_order: int = 10,
+        ) -> np.ndarray:
     
     """
     # Filter the data using butterworth filter
@@ -236,18 +245,18 @@ def filter_data(data: np.ndarray,
 
 
 class TFCGAN:
-    
-    def __init__(self,
-                 dirc: str = None,
-                 scalemin: float = -10,
-                 scalemax:float = 2.638887,
-                 pwr:float = 1,
-                 noise: int= 100,
-                 mtype: int=1
-                 ) -> None:
-        """
-        TODO provide doc
+
+    def __init__(
+            self,
+            dirc: str = None,
+            scalemin: float = -10,
+            scalemax:float = 2.638887,
+            pwr:float = 1,
+            noise: int= 100,
+            mtype: int=1,
+            ) -> None:
         
+        """        
         :param dirc: Trained model directory
         :param scalemin: Scale factor in Pre-processing step
         :param scalemax: Scale factor in pre-processing step
@@ -259,9 +268,11 @@ class TFCGAN:
             0: insert labels (Mw, R, Vs30) as a vector
             1: inset labels (Mw, R, Vs30) separately.
         """
+
         if dirc is None:
             dirc = os.path.abspath(os.path.join(
                 os.path.dirname(os.path.dirname(__file__)), 'model'))
+            
         self.dirc = dirc  # Model directory
         self.pwr = pwr  # Power or absolute
         self.scalemin = scalemin * self.pwr  # Scaling (clipping the dynamic range)
@@ -275,13 +286,14 @@ class TFCGAN:
         # self.mtype = mtype
         
     # Generate TFR
-    def generator(self,
-                  mag: T.Union[int, float],
-                  dis: T.Union[int, float], 
-                  vs: T.Union[int, float] , 
-                  noise: np.ndarray, 
-                  ngen: int = 1,
-                  ) -> np.ndarray:
+    def generator(
+            self,
+            mag: T.Union[int, float],
+            dis: T.Union[int, float], 
+            vs: T.Union[int, float] , 
+            noise: np.ndarray, 
+            ngen: int = 1,
+            ) -> np.ndarray:
         
         """
         Generate TF representation for one scenario
@@ -312,16 +324,17 @@ class TFCGAN:
     
     # Calculate the TF, Time-history, and FAS
 
-    def maker(self,
-              mag: T.Union[int, float] = 7, 
-              dis: T.Union[int, float] = 10, 
-              vs: T.Union[int, float] = 760, 
-              ngen: int = 1,
-              pr_int:int=10,
-              mode: str = "ADMM",
-              rho: float = 1e-5,
-              eps: float =1e-3,
-              ab=1) -> tuple:
+    def maker(
+            self,
+            mag: T.Union[int, float] = 7, 
+            dis: T.Union[int, float] = 10, 
+            vs: T.Union[int, float] = 760, 
+            ngen: int = 1,
+            pr_int:int=10,
+            mode: str = "ADMM",
+            rho: float = 1e-5,
+            eps: float =1e-3,
+            ab=1) -> tuple:
         
         """
         Generate accelerogram for one scenario
