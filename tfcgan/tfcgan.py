@@ -4,10 +4,11 @@ core module
 import os
 from tensorflow import keras
 import numpy as np
-#import librosa
-from scipy.signal import butter, filtfilt
 from scipy.signal.windows import tukey
 from scipy import signal
+from scipy.signal import butter, sosfiltfilt
+import typing as T
+
 
 
 # from numba import prange
@@ -17,7 +18,6 @@ from scipy import signal
 #  all LOWERCASE, and at least 3 letters. (for scientific code I usually relax some
 #  conditions, e.g., "g", "pi", "x" "y" are fine, as long as they denote their scientific
 #  counterpart)
-
 
 # STFT parameters used in pre-processing step:
 win_length = 128 + 64  # Window length
@@ -31,7 +31,7 @@ n_fft = 256  # nfft
 
 class STFT(signal.ShortTimeFFT):
     def __init__(self, 
-                 fs: int, 
+                 sr: int, 
                  window: int, 
                  noverlap: int,
                  nfft: int,
@@ -46,23 +46,22 @@ class STFT(signal.ShortTimeFFT):
         :param nfft: number of FFT points
         """
 
-        self.fs = fs
+        self.sr = sr
         self.window = window
         self.noverlap = noverlap
         self.nfft = nfft
-        self.f, self.t, self.Zxx = signal.stft(data, fs, window, noverlap, nfft)
 
 
     def stft(self, 
-             data: np.ndarray
+             signal: np.ndarray
              ) -> np.ndarray:
         
         """
         forward Short Time Fourier Transform
 
         """
-        self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
-
+        #self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
+        self.f, self.t, self.Zxx = self.stft(signal, self.fs, self.window, self.noverlap, self.nfft)
 
     def istft(self,
               tfr: np.ndarray,
@@ -70,7 +69,7 @@ class STFT(signal.ShortTimeFFT):
         
         """
         inverse Short Time Fourier Transform
-        
+
         """
 
         _, x = self.istft(tfr, self.fs, self.window, self.noverlap, self.nfft)
@@ -83,7 +82,7 @@ class STFT(signal.ShortTimeFFT):
 
 
 def phase_retrieval_gla(tfr_m: np.ndarray,
-            pr_int: np.int= 10,
+            pr_int: np.int = 10,
             ) -> np.ndarray:
 
     """ 
@@ -119,8 +118,19 @@ def phase_retrieval_gla(tfr_m: np.ndarray,
     return recon_sig
 
 
-def pra_admm(tf, rho, eps, pr_int=10, ab=0):
+def pra_admm(tf: np.ndarray, 
+             rho, 
+             eps, 
+             pr_int: int = 10, 
+             ab=0
+             ) -> np.ndarray: 
+    
+    """
+    phase retrieval algorithm based on ADMM algorithm for phase retrieval based on Bregman divergences
+
     # Code modified from https://github.com//phvial/PRBregDiv
+    """
+
 
     mag = np.abs(tf)
     phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))
@@ -156,8 +166,18 @@ def pra_admm(tf, rho, eps, pr_int=10, ab=0):
     return x
 
 
-def compute_prox(y, r, rho, eps, ab: int):
+def compute_prox(y, 
+                 r, 
+                 rho, 
+                 eps, 
+                 ab: int
+                 ) -> np.ndarray:
+    
+    """
     # Code modified from https://github.com//phvial/PRBregDiv
+    # Compute the proximal operator of the l1 norm
+    """
+    
     eps = np.min(r) + eps
     if ab == 1:
         v = (rho * y + 2 * r) / (rho + 2)
@@ -171,32 +191,43 @@ def compute_prox(y, r, rho, eps, ab: int):
     return v
 
 
-def butter_bandpass(lowcut, highcut, fs, order=4):
-    """TODO add doc"""
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
+
+def filter_data(data: np.ndarray, 
+                freqmin: T.Union[float, int, None],
+                freqmax: T.Union[float, int, None],
+                sr: int, 
+                filtertype: str = 'bp',
+                filter_order: int = 10,
+                ) -> np.ndarray:
     
-    if low <= 0:
-        w_n = high
-        btype = "lowpass"
-    elif high <= 0:
-        w_n = low
-        btype = "highpass"
+    """
+    # Filter the data using butterworth filter
+
+    """
+    
+    if filtertype == 'bp' and (freqmin is not None or freqmax is not None):
+        sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr, output='sos')
+
+    elif filtertype == 'lp' and freqmax is not None:
+        sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos')
+
+    elif filtertype == 'hp' and freqmin is not None:
+        sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos')
+
     else:
-        w_n = [low, high]
-        btype = "bandpass"
+        raise ValueError('filter_data `filtertype` parameter should be in ("bp", "lp", "hp")')
 
-    b, a = butter(order, w_n, btype=btype)
-    
-    return b, a
+    datafilter = sosfiltfilt(sos, data, axis=-1)
+
+    return datafilter
 
 
-def my_filter(y, fmin, fmax, samp):  # FIXME: better function name
-    """TODO: add doc"""
-    b, a = butter_bandpass(fmin, fmax, samp)
-    window_time = tukey(y.shape[-1], 0.1)
-    return filtfilt(b, a, y * window_time, axis=-1)
+
+#def my_filter(y, fmin, fmax, samp):  # FIXME: better function name
+ #   """TODO: add doc"""
+ #   b, a = butter_bandpass(fmin, fmax, samp)
+ #   window_time = tukey(y.shape[-1], 0.1)
+  #  return filtfilt(b, a, y * window_time, axis=-1)
 
 
 # ######
@@ -207,12 +238,12 @@ def my_filter(y, fmin, fmax, samp):  # FIXME: better function name
 class TFCGAN:
     
     def __init__(self,
-                 dirc=None,
-                 scalemin: float =-10,
-                 scalemax:float=2.638887,
-                 pwr=1,
+                 dirc: str = None,
+                 scalemin: float = -10,
+                 scalemax:float = 2.638887,
+                 pwr:float = 1,
                  noise: int= 100,
-                 mtype=1
+                 mtype: int=1
                  ) -> None:
         """
         TODO provide doc
@@ -245,19 +276,20 @@ class TFCGAN:
         
     # Generate TFR
     def generator(self,
-                  mag,
-                  dis, 
-                  vs, 
-                  noise, 
-                  ngen=1
+                  mag: T.Union[int, float],
+                  dis: T.Union[int, float], 
+                  vs: T.Union[int, float] , 
+                  noise: np.ndarray, 
+                  ngen: int = 1,
                   ) -> np.ndarray:
+        
         """
         Generate TF representation for one scenario
 
         :param mag: Magnitude value
         :param dis: Distance value
         :param vs: Vs30 value
-        :param noise: TODO provide doc
+        :param noise: random noise vector
         :param ngen: Number of generated waveforms
         
         :return: Descaled Time-frequency representation
@@ -271,14 +303,6 @@ class TFCGAN:
         label = np.concatenate([mag, dis, vs], axis=1)
 
         tf = self.model.predict([label, noise])[:, :, :, 0]
-        # if self.mtype == 0:
-        #     tf = self.model.predict([label,  noise])[:, :, :, 0]
-        # elif self.mtype == 1:
-        #     tf = self.model.predict(
-        #         [label[:, 0], label[:, 1], label[:, 2],  noise]
-        #     )[:, :, :, 0]
-        # else:
-        #     raise ValueError('TFCGAN `mtype` should be in (0, 1)')
 
         tf = (tf + 1) / 2
         tf = (tf * (self.scalemax-self.scalemin)) + self.scalemin
@@ -287,16 +311,18 @@ class TFCGAN:
         return tf
     
     # Calculate the TF, Time-history, and FAS
+
     def maker(self,
-              mag: float,
-              dis: float,
-              vs: float,
+              mag: T.Union[int, float] = 7, 
+              dis: T.Union[int, float] = 10, 
+              vs: T.Union[int, float] = 760, 
               ngen: int = 1,
               pr_int:int=10,
               mode: str = "ADMM",
               rho: float = 1e-5,
               eps: float =1e-3,
               ab=1) -> tuple:
+        
         """
         Generate accelerogram for one scenario
 
