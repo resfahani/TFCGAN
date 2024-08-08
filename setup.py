@@ -14,7 +14,7 @@ setup(
     install_requires=[
         'numpy==1.26.1',
         'tensorflow==2.11.1',
-        # 'numba>=0.59.1',
+        # 'obspy==1.4.1',
         'librosa>=0.10.2'
     ],
     # List additional groups of dependencies here (e.g. development
@@ -60,7 +60,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'tfcgan=tfcgan.run:cli_entry_point',
+            'tfcgan=tfcgan.cli:run',
         ],
     },
 )
