@@ -24,11 +24,28 @@ win_length = 128 + 64  # Window length
 hop_length = 16  # Hop length
 n_fft = 256  # nfft
 
+# ###############
+# Short Time Fourier Transform
+# ###############
 
 
 class STFT(signal.ShortTimeFFT):
-    def __init__(self, data, fs, window, noverlap, nfft):
-        self.data = data
+    def __init__(self, 
+                 fs: int, 
+                 window: int, 
+                 noverlap: int,
+                 nfft: int,
+                 ) -> None:
+        """
+        Short Time Fourier Transform
+
+        :param data: input signal
+        :param fs: sampling frequency
+        :param window: window length
+        :param noverlap: overlap length
+        :param nfft: number of FFT points
+        """
+
         self.fs = fs
         self.window = window
         self.noverlap = noverlap
@@ -36,13 +53,27 @@ class STFT(signal.ShortTimeFFT):
         self.f, self.t, self.Zxx = signal.stft(data, fs, window, noverlap, nfft)
 
 
-    def transform()
+    def stft(self, 
+             data: np.ndarray
+             ) -> np.ndarray:
+        
+        """
+        forward Short Time Fourier Transform
+
+        """
         self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
 
 
-    def istft(self, Zxx):
+    def istft(self,
+              tfr: np.ndarray,
+              ) -> np.ndarray:
+        
+        """
+        inverse Short Time Fourier Transform
+        
+        """
 
-        _, x = self.istft(Zxx, self.fs, self.window, self.noverlap, self.nfft)
+        _, x = self.istft(tfr, self.fs, self.window, self.noverlap, self.nfft)
         
         return x
     
@@ -50,8 +81,6 @@ class STFT(signal.ShortTimeFFT):
 # Phase retrieval
 # ###############
 
-
-    
 
 def phase_retrieval_gla(tfr_m: np.ndarray,
             pr_int: np.int= 10,
