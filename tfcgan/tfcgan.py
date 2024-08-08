@@ -4,9 +4,11 @@ core module
 import os
 from tensorflow import keras
 import numpy as np
-import librosa
+#import librosa
 from scipy.signal import butter, filtfilt
 from scipy.signal.windows import tukey
+from scipy import signal
+
 
 # from numba import prange
 
@@ -23,15 +25,42 @@ hop_length = 16  # Hop length
 n_fft = 256  # nfft
 
 
+
+class STFT(signal.ShortTimeFFT):
+    def __init__(self, data, fs, window, noverlap, nfft):
+        self.data = data
+        self.fs = fs
+        self.window = window
+        self.noverlap = noverlap
+        self.nfft = nfft
+        self.f, self.t, self.Zxx = signal.stft(data, fs, window, noverlap, nfft)
+
+
+    def transform()
+        self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
+
+
+    def istft(self, Zxx):
+
+        _, x = self.istft(Zxx, self.fs, self.window, self.noverlap, self.nfft)
+        
+        return x
+    
 # ###############
 # Phase retrieval
 # ###############
 
-def pra_gla(tfr_m: np.ndarray,
-            pr_int: np.int = 10
-            )->np.ndarray:
 
-    """TODO add doc"""
+    
+
+def phase_retrieval_gla(tfr_m: np.ndarray,
+            pr_int: np.int= 10,
+            ) -> np.ndarray:
+
+    """ 
+    phase retrieval algorithm based on Griffin-Lim Algorithm
+    
+    """
 
     mag = np.abs(tfr_m) #absolute magnitude
     #generate random phase
@@ -150,11 +179,12 @@ class TFCGAN:
     
     def __init__(self,
                  dirc=None,
-                 scalemin=-10,
-                 scalemax=2.638887,
+                 scalemin: float =-10,
+                 scalemax:float=2.638887,
                  pwr=1,
-                 noise=100,
-                 mtype=1):
+                 noise: int= 100,
+                 mtype=1
+                 ) -> None:
         """
         TODO provide doc
         
@@ -185,7 +215,13 @@ class TFCGAN:
         # self.mtype = mtype
         
     # Generate TFR
-    def generator(self, mag, dis, vs, noise, ngen=1):
+    def generator(self,
+                  mag,
+                  dis, 
+                  vs, 
+                  noise, 
+                  ngen=1
+                  ) -> np.ndarray:
         """
         Generate TF representation for one scenario
 
@@ -223,15 +259,15 @@ class TFCGAN:
     
     # Calculate the TF, Time-history, and FAS
     def maker(self,
-              mag,
-              dis,
-              vs,
-              ngen=1,
-              pr_int=10,
-              mode="ADMM",
-              rho=1e-5,
-              eps=1e-3,
-              ab=1):
+              mag: float,
+              dis: float,
+              vs: float,
+              ngen: int = 1,
+              pr_int:int=10,
+              mode: str = "ADMM",
+              rho: float = 1e-5,
+              eps: float =1e-3,
+              ab=1) -> tuple:
         """
         Generate accelerogram for one scenario
 
@@ -271,7 +307,7 @@ class TFCGAN:
                 x[i, :] = pra_admm(s[i, :, :], rho, eps, pr_int, ab)
         else:  # "GLA"
             for i in range(ngen):
-                x[i, :] = pra_gla(s[i, :, :], pr_int)
+                x[i, :] = phase_retrieval_gla(s[i, :, :], pr_int)
 
         freq, xh = self.fft(x)
         tx = np.arange(x.shape[1]) * self.dt
