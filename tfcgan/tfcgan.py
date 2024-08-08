@@ -7,6 +7,7 @@ import numpy as np
 import librosa
 from scipy.signal import butter, filtfilt
 from scipy.signal.windows import tukey
+
 # from numba import prange
 
 # TODO: check all single-letter variables and params and try to provide a more
@@ -14,6 +15,7 @@ from scipy.signal.windows import tukey
 #  all LOWERCASE, and at least 3 letters. (for scientific code I usually relax some
 #  conditions, e.g., "g", "pi", "x" "y" are fine, as long as they denote their scientific
 #  counterpart)
+
 
 # STFT parameters used in pre-processing step:
 win_length = 128 + 64  # Window length
@@ -25,33 +27,38 @@ n_fft = 256  # nfft
 # Phase retrieval
 # ###############
 
+def pra_gla(tfr_m: np.ndarray,
+            pr_int: np.int = 10
+            )->np.ndarray:
 
-def pra_gla(tf, pr_int=10):
     """TODO add doc"""
-    mag = np.abs(tf)
+
+    mag = np.abs(tfr_m) #absolute magnitude
+    #generate random phase
     phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
-    x = librosa.istft(  # TODO at least 3-letter vars, and more meaningful than 'x'
+
+    recon_sig = librosa.istft(
         mag * np.exp(phase * 1j),
         hop_length=hop_length,
         win_length=win_length,
         length=4000)
-    
+     
     for i in range(pr_int):
-        tfr = librosa.stft(
-            x,
+        recon_tfr = librosa.stft(
+            recon_sig,
             n_fft=n_fft,
             hop_length=hop_length,
             win_length=win_length
         )[:128, :248]
-        phase = np.angle(tfr)
-        tfr = mag * np.exp(1j * phase)
-        x = librosa.istft(
-            tfr,
+        phase = np.angle(recon_tfr)
+        recon_tfr = mag * np.exp(1j * phase)
+        recon_sig = librosa.istft(
+            recon_tfr,
             hop_length=hop_length,
             win_length=win_length,
             length=4000)
-
-    return x
+        
+    return recon_sig
 
 
 def pra_admm(tf, rho, eps, pr_int=10, ab=0):
