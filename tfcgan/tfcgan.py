@@ -10,32 +10,18 @@ from scipy.signal import butter, sosfiltfilt
 import typing as T
 
 
-# from numba import prange
-
-# TODO: check all single-letter variables and params and try to provide a more
-#  meaningful name. Pyhon code conventions say: variables and function names
-#  all LOWERCASE, and at least 3 letters. (for scientific code I usually relax some
-#  conditions, e.g., "g", "pi", "x" "y" are fine, as long as they denote their scientific
-#  counterpart)
-
-# STFT parameters used in pre-processing step:
-win_length = 128 + 64  # Window length
-hop_length = 16  # Hop length
-n_fft = 256  # nfft
-
 # ###############
 # Short Time Fourier Transform
 # ###############
 
 
 class STFT(signal.ShortTimeFFT):
-    def __init__(
-            self, 
-            sr: int, 
-            window: int, 
-            hoplength: int,
-            nfft: int,
-            ) -> None:
+    def __init__(self, 
+                 sr: int, 
+                 window: int, 
+                 hoplength: int,
+                 nfft: int,
+                 ) -> None:
 
         """
         Short Time Fourier Transform
@@ -89,6 +75,7 @@ class STFT(signal.ShortTimeFFT):
 def phase_retrieval_gla(
         tfr_m: np.ndarray,
         iteration_pr: np.int = 10,
+        stft_operator: T.Callable[np.ndarray, np.ndarray]: 
         ) -> np.ndarray:
 
     """ 
@@ -100,26 +87,18 @@ def phase_retrieval_gla(
     #generate random phase
     phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
 
-    recon_sig = librosa.istft(
-        mag * np.exp(phase * 1j),
-        hop_length=hop_length,
-        win_length=win_length,
-        length=4000)
+    recon_sig = stft_operator.istft(
+        mag * np.exp(phase * 1j))
      
     for i in range(iteration_pr):
-        recon_tfr = librosa.stft(
-            recon_sig,
-            n_fft=n_fft,
-            hop_length=hop_length,
-            win_length=win_length
-        )[:128, :248]
+        recon_tfr = stft_operator.stft(
+            recon_sig
+        )
         phase = np.angle(recon_tfr)
         recon_tfr = mag * np.exp(1j * phase)
-        recon_sig = librosa.istft(
-            recon_tfr,
-            hop_length=hop_length,
-            win_length=win_length,
-            length=4000)
+        recon_sig = stft_operator.istft(
+            recon_tfr
+            )
         
     return recon_sig
 
@@ -148,32 +127,15 @@ def pra_admm(
     #x = my_filter(x, 0.05, 48, 100)
 
     for ii in range(iteration_pr):
-        rec_tfr = librosa.stft(
-            rec_signal,
-            hop_length=hop_length,
-            win_length=win_length,
-            n_fft=n_fft
-        )[:128, :248]
+        rec_tfr = stft_operator.stft(rec_signal)
         
         h = rec_tfr + (1/rho) * a
-
         ph = np.angle(h)
         u = compute_prox(abs(h), mag, rho, eps, ab)
         z = u * np.exp(1j * ph)
 
-        rec_signal = librosa.istft(
-            z - (1/rho) * a,
-            hop_length=hop_length,
-            win_length=win_length,
-            length=4000)
-        
-        x_hat = librosa.stft(
-            rec_signal,
-            hop_length=hop_length,
-            win_length=win_length,
-            n_fft=n_fft
-        )[:128, :248]
-
+        rec_signal = stft_operator.istft(z - (1/rho) * a,)        
+        x_hat = stft_operator.stft(rec_signal)
         a = a + rho * (x_hat - z)
         #x = my_filter(x, 0.05, 48, 100)
 
@@ -253,6 +215,10 @@ class TFCGAN:
             pwr:float = 1,
             noise_dim: int= 100,
             mtype: int=1,
+            self.dt: float = 0.01,
+            self.nfft: int = 256,
+            self.hop_length: int = 16,
+            self.win_length: int = 128 + 64,
             ) -> None:
         
         """        
@@ -277,13 +243,19 @@ class TFCGAN:
         self.scalemin = scalemin * self.pwr  # Scaling (clipping the dynamic range)
         self.scalemax = scalemax * self.pwr  # Maximum value
         self. noise_dim = noise_dim  # later space
-        self.dt = 0.01
+    
+        # STFT parameters
 
-        # FIXME: do we just need Keras to load a model? is there a way maybe
-        #  to just install keras and not the whole tensorflow package?
+        self.dt = 0.01
+        self.nfft = nfft
+        self.hop_length = hop_length
+        self.win_length = win_length
+
+        self.stft_operator = STFT(self.dt, self.win_length, self.hop_length, self.nfft)
+    
         self.model = keras.models.load_model(self.dirc)
-        # self.mtype = mtype
-        #  
+
+
     # Generate TFR
     def tf_generator(
             self,
@@ -323,7 +295,7 @@ class TFCGAN:
     
     # Calculate the TF, Time-history, and FAS
 
-    def simulator_shaking(
+    def simulator(
             self,
             mw: T.Union[int, float] = 7, 
             rhyp: T.Union[int, float] = 10, 
@@ -334,8 +306,7 @@ class TFCGAN:
             rho: float = 1e-5,
             eps: float =1e-3,
             ab=1) -> tuple:
-         
-
+        
         """
         Generate accelerogram for one scenario
 
@@ -363,12 +334,12 @@ class TFCGAN:
 
         noise = np.random.normal(0, 1, (num_real, self.noise_dim))
 
-        s = self.tf_generator(mw, 
-                           rhyp, 
-                           vs30, 
-                           noise, 
-                           ngen = num_real,
-                           )
+        s = self.tf_generator(mw,
+                              rhyp, 
+                              vs30, 
+                              noise, 
+                              ngen = num_real,
+                              )
 
         # TODO: two lines below replaced by np.zeros. Check and cleanup in case:
         # x = np.empty((ngen, 4000))
