@@ -44,14 +44,13 @@ dist = 100
 vs30 = 760
 num_waveforms = 10
 # Generate waveforms, time and frequencies:
-tfc = TFCGAN().maker(mag, dist, vs30, num_waveforms)
+tfc = TFCGAN().simulator_shaking(mag, dist, vs30, num_waveforms)
 # get waveform data:
 data = tfc[-1]
 # data is a Numpy Matrix of shape (num_waveforms, 4000). 
 # Each waveform delta time is 0.01 sec 
 # (i.e., each waveform is 40s long by default)
 ```
-
 
 
 ### TODO list:

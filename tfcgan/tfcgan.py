@@ -283,9 +283,9 @@ class TFCGAN:
         #  to just install keras and not the whole tensorflow package?
         self.model = keras.models.load_model(self.dirc)
         # self.mtype = mtype
-        
+        #  
     # Generate TFR
-    def generator(
+    def tf_generator(
             self,
             mag: T.Union[int, float],
             dis: T.Union[int, float], 
@@ -323,7 +323,7 @@ class TFCGAN:
     
     # Calculate the TF, Time-history, and FAS
 
-    def maker(
+    def simulator_shaking(
             self,
             mw: T.Union[int, float] = 7, 
             rhyp: T.Union[int, float] = 10, 
@@ -363,7 +363,7 @@ class TFCGAN:
 
         noise = np.random.normal(0, 1, (num_real, self.noise_dim))
 
-        s = self.generator(mw, 
+        s = self.tf_generator(mw, 
                            rhyp, 
                            vs30, 
                            noise, 
@@ -406,7 +406,7 @@ class TFCGAN:
         
         n = s.shape[1]//2
         lp = np.abs(np.fft.fft(s, norm="forward", axis=1))[:, :n]
-        
+
         freq = np.linspace(0, 0.5, n)/self.dt
         
         return freq, lp.T
