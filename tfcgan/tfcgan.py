@@ -88,7 +88,7 @@ class STFT(signal.ShortTimeFFT):
 
 def phase_retrieval_gla(
         tfr_m: np.ndarray,
-        pr_int: np.int = 10,
+        iteration_pr: np.int = 10,
         ) -> np.ndarray:
 
     """ 
@@ -106,7 +106,7 @@ def phase_retrieval_gla(
         win_length=win_length,
         length=4000)
      
-    for i in range(pr_int):
+    for i in range(iteration_pr):
         recon_tfr = librosa.stft(
             recon_sig,
             n_fft=n_fft,
@@ -125,10 +125,10 @@ def phase_retrieval_gla(
 
 
 def pra_admm(
-        tf: np.ndarray, 
+        tfr_m: np.ndarray, 
         rho, 
         eps, 
-        pr_int: int = 10, 
+        iteration_pr: int = 10, 
         ab=0,
         ) -> np.ndarray: 
     
@@ -137,38 +137,45 @@ def pra_admm(
 
     # Code modified from https://github.com//phvial/PRBregDiv
     """
-
-
-    mag = np.abs(tf)
+    #get magnitude
+    mag = np.absolute(tfr_m)
+    #generate random phase
     phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))
+    #generate random phase
     tfr = mag * np.exp(1j * phase)
-    x = librosa.istft(tfr, hop_length=hop_length, win_length=win_length, length=4000)
+    rec_signal = librosa.istft(tfr, hop_length=hop_length, win_length=win_length, length=4000)
     a = 0
-    x = my_filter(x, 0.05, 48, 100)
-    for ii in range(pr_int):
-        xx = librosa.stft(
-            x,
+    #x = my_filter(x, 0.05, 48, 100)
+
+    for ii in range(iteration_pr):
+        rec_tfr = librosa.stft(
+            rec_signal,
             hop_length=hop_length,
             win_length=win_length,
             n_fft=n_fft
         )[:128, :248]
-        h = xx + (1/rho) * a
+        
+        h = rec_tfr + (1/rho) * a
+
         ph = np.angle(h)
         u = compute_prox(abs(h), mag, rho, eps, ab)
         z = u * np.exp(1j * ph)
-        x = librosa.istft(
+
+        rec_signal = librosa.istft(
             z - (1/rho) * a,
             hop_length=hop_length,
             win_length=win_length,
             length=4000)
+        
         x_hat = librosa.stft(
-            x,
+            rec_signal,
             hop_length=hop_length,
             win_length=win_length,
             n_fft=n_fft
         )[:128, :248]
+
         a = a + rho * (x_hat - z)
-        x = my_filter(x, 0.05, 48, 100)
+        #x = my_filter(x, 0.05, 48, 100)
 
     return x
 
@@ -204,7 +211,7 @@ def filter_data(
         data: np.ndarray, 
         freqmin: T.Union[float, int, None],
         freqmax: T.Union[float, int, None],
-        sr: int, 
+        sr: int = 40, 
         filtertype: str = 'bp',
         filter_order: int = 10,
         ) -> np.ndarray:
@@ -231,14 +238,6 @@ def filter_data(
     return datafilter
 
 
-
-#def my_filter(y, fmin, fmax, samp):  # FIXME: better function name
- #   """TODO: add doc"""
- #   b, a = butter_bandpass(fmin, fmax, samp)
- #   window_time = tukey(y.shape[-1], 0.1)
-  #  return filtfilt(b, a, y * window_time, axis=-1)
-
-
 # ######
 # TFCGAN
 # ######
@@ -252,7 +251,7 @@ class TFCGAN:
             scalemin: float = -10,
             scalemax:float = 2.638887,
             pwr:float = 1,
-            noise: int= 100,
+            noise_dim: int= 100,
             mtype: int=1,
             ) -> None:
         
@@ -277,7 +276,7 @@ class TFCGAN:
         self.pwr = pwr  # Power or absolute
         self.scalemin = scalemin * self.pwr  # Scaling (clipping the dynamic range)
         self.scalemax = scalemax * self.pwr  # Maximum value
-        self. noiseint = noise  # later space
+        self. noise_dim = noise_dim  # later space
         self.dt = 0.01
 
         # FIXME: do we just need Keras to load a model? is there a way maybe
@@ -292,9 +291,9 @@ class TFCGAN:
             dis: T.Union[int, float], 
             vs: T.Union[int, float] , 
             noise: np.ndarray, 
-            ngen: int = 1,
+            num_real: int = 1,
             ) -> np.ndarray:
-        
+         
         """
         Generate TF representation for one scenario
 
@@ -308,9 +307,9 @@ class TFCGAN:
         
         """
         
-        mag = np.ones([ngen, 1]) * mag
-        dis = np.ones([ngen, 1]) * dis
-        vs = np.ones([ngen, 1]) * vs / 1000
+        mag = np.ones([num_real, 1]) * mag
+        dis = np.ones([num_real, 1]) * dis
+        vs = np.ones([num_real, 1]) * vs / 1000
         
         label = np.concatenate([mag, dis, vs], axis=1)
 
@@ -326,16 +325,17 @@ class TFCGAN:
 
     def maker(
             self,
-            mag: T.Union[int, float] = 7, 
-            dis: T.Union[int, float] = 10, 
-            vs: T.Union[int, float] = 760, 
-            ngen: int = 1,
-            pr_int:int=10,
+            mw: T.Union[int, float] = 7, 
+            rhyp: T.Union[int, float] = 10, 
+            vs30: T.Union[int, float] = 760, 
+            num_real: int = 1,
+            iter_pr:int=10,
             mode: str = "ADMM",
             rho: float = 1e-5,
             eps: float =1e-3,
             ab=1) -> tuple:
-        
+         
+
         """
         Generate accelerogram for one scenario
 
@@ -361,27 +361,43 @@ class TFCGAN:
         if mode not in ("ADMM", "GLA"):
             raise ValueError('maker `mode` parameter should be in ("ADMM", "GLA")')
 
-        noise = np.random.normal(0, 1, (ngen, self.noiseint))
-        
-        s = self.generator(mag, dis, vs, noise, ngen=ngen)
+        noise = np.random.normal(0, 1, (num_real, self.noise_dim))
+
+        s = self.generator(mw, 
+                           rhyp, 
+                           vs30, 
+                           noise, 
+                           ngen = num_real,
+                           )
 
         # TODO: two lines below replaced by np.zeros. Check and cleanup in case:
         # x = np.empty((ngen, 4000))
         # x[:] = 0
-        x = np.zeros((ngen, 4000))
+        x = np.zeros((num_real, 4000))
 
         if mode == "ADMM":
-            for i in range(ngen):
-                x[i, :] = pra_admm(s[i, :, :], rho, eps, pr_int, ab)
+            for i in range(num_real):
+
+                x[i, :] = pra_admm(s[i, :, :], 
+                                   rho, 
+                                   eps, 
+                                   iter_pr, 
+                                   ab
+                                   )
+                
         else:  # "GLA"
-            for i in range(ngen):
-                x[i, :] = phase_retrieval_gla(s[i, :, :], pr_int)
+            for i in range(num_real):
+                x[i, :] = phase_retrieval_gla(s[i, :, :], 
+                                              iter_pr
+                                              )
+
 
         freq, xh = self.fft(x)
         tx = np.arange(x.shape[1]) * self.dt
         
         return tx, freq, xh, s, x  # FIXME: see docstring return
     
+
     def fft(self, s):
         # non-normalized fft without any norm specification
         
@@ -390,6 +406,7 @@ class TFCGAN:
         
         n = s.shape[1]//2
         lp = np.abs(np.fft.fft(s, norm="forward", axis=1))[:, :n]
+        
         freq = np.linspace(0, 0.5, n)/self.dt
         
         return freq, lp.T
