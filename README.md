@@ -43,8 +43,14 @@ mag = 7
 dist = 100
 vs30 = 760
 num_waveforms = 10
-# Generate waveforms, time and frequencies:
-tfc = TFCGAN().simulator_shaking(mag, dist, vs30, num_waveforms)
+
+tfcgan = TFCGAN()
+
+# Generate time-frequency representation:
+tfr_ = tfcgan.tf_synthesis(mag, dist, vs30, num_waveforms)
+
+# Generate waveform
+tfc = tfcgan.shaking_synthesis
 # get waveform data:
 data = tfc[-1]
 # data is a Numpy Matrix of shape (num_waveforms, 4000). 
