@@ -185,10 +185,13 @@ def filter_data(data: np.ndarray,
 
     if filtertype == 'bp' and (freqmin is not None or freqmax is not None):
         sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr, output='sos')
+
     elif filtertype == 'lp' and freqmax is not None:
         sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos')
+    
     elif filtertype == 'hp' and freqmin is not None:
         sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos')
+    
     else:
         raise ValueError('filter_data `filtertype` parameter should be in ("bp", "lp", "hp")')
     
@@ -338,17 +341,13 @@ class TFCGAN:
             eps: ADMM parameter
         """
 
-        x_rt = []
-        if mode == "ADMM":
-            for i in range(self.n_realization):
+        x_rt = [] # Time-history list
+        for i in range(self.n_realization):
+            if mode == "ADMM":
                 x = phase_retrieval_admm(tfr_m = tf_data[i, ...], rho = rho, eps = eps, stft_operator = self.stft_operator, iteration_pr = iter_pr)
-                x_rt.append(x)
-                
-        else:  # "GLA"
-            for i in range(self.n_realization):
+            else:  # "GLA"
                 x = phase_retrieval_gla(tfr_m = tf_data[i, ...], iteration_pr = iter_pr, stft_operator = self.stft_operator)
-                x_rt.append(x)
-
+            x_rt.append(x)
         return np.asarray(x_rt) # return the generated time-history
     
 
