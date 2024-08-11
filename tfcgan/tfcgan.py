@@ -8,7 +8,7 @@ import numpy as np
 import typing as T
 
 import signal_tfcgan as signal_
-
+from normalization import Normalization
 
 # ###############
 # TFCGAN
@@ -96,13 +96,14 @@ class TFCGAN:
     def __repr__(self) -> str:
 
         return (
-            f"Moment magnitude = {self.mw}, "
-            f"hypocenter distance = {self.rhyp} km, "
-            f"Vs30 = {self.vs30} m/s, "
-            f"num_waveforms = {self.num_waveforms}, "
-            f"phase retrieval mode = {self.mode}, "
-            f"phase retrieval iteration = {self.iter_pr}, "
+            f"Mw: {self.mw}, "
+            f"Rhyp: {self.rhyp} km, "
+            f"Vs30: {self.vs30} m/s, "
+            f"n_wave: {self.num_waveforms}, "
+            f"PR mode: {self.mode}, "
+            f"PR iter: {self.iter_pr}."
             )
+
     
     def fft(self, gm_synth: np.ndarray) -> tuple:
         # non-normalized fft without any norm specification
@@ -115,9 +116,8 @@ class TFCGAN:
     
     @property 
     def get_time_axs(self) -> np.ndarray:
-        """
-        Time vector
-        """
+        # get time axis
+
         if not hasattr(self, "gm_synth"):
             raise ValueError("Run the get_ground_shaking_synthesis method first")
         else:
@@ -125,18 +125,16 @@ class TFCGAN:
 
     @property
     def delete_attr(self) -> None:
-        """
-        Delete the attributes
-        """
+        # Delete the attributes for new scenario
+
         for value in ["tf_synth", "gm_synth", "fas_synth", 'label', 'mw', 'rhyp', 'vs30']:
             if hasattr(self, value):
                 delattr(self, value)
         
     @property
     def get_tf_representation(self) -> np.ndarray:
-        """
-        Return the time-frequency representation
-        """
+        #Return the time-frequency representation
+        
         if not hasattr(self, "tf_synth"):
             self.tf_synth = self.normalization.inverse(self.model.predict([self.label, self.noise_gen])[:, :, :, 0]) # simulate Time-frequency representation and descale it
             return self.tf_synth
@@ -145,17 +143,15 @@ class TFCGAN:
 
     @property
     def get_ground_shaking_synthesis(self) -> tuple:
-        """
-        Generate the time-history
-        """        
+        # Generate the ground shaking using phase retrieval algorithm
         if not hasattr(self, "tf_synth"):
             _ = self.get_tf_representation
 
         if  hasattr(self, "gm_synth"):
-            return  self.get_time_axs, self.gm_synth
+            return self.get_time_axs, self.gm_synth
         else:
             self.gm_synth = self.phase_retrieval.apply_on_data(self.tf_synth, self.mode) # reconstruct the ground shaking using PR and genrated TFR
-            return  self.get_time_axs, self.gm_synth
+            return self.get_time_axs, self.gm_synth
 
     @property
     def filtered_data(self) -> np.ndarray:
@@ -164,9 +160,7 @@ class TFCGAN:
 
     @property
     def phase_retrieval(self) -> T.Callable:
-        """
-        Phase retrieval algorithm
-        """
+        # return the phase retrieval function
         return signal_.PhaseRetrieval(stft_operator = self.stft_operator, iteration_pr = self.iter_pr, rho = self.rho, eps = self.eps)
     
     @property
@@ -200,56 +194,17 @@ class TFCGAN:
             _, _ = self.get_ground_shaking_synthesis
 
         # Frequency response of the generated time-history
-        freq, fas_synth = self.fft(self.gm_synth) 
-        return freq, fas_synth
+        self.freq, self.fas_synth = self.fft(self.gm_synth) 
+        return self.freq, self.fas_synth
 
-# ###############
-## Normalization
-# ############### 
-
-class Normalization:
-    def __init__(self,
-                 scalemin: float = -10,
-                 scalemax: float = 2.638887,
-                 pwr: float = 1,
-                 ) -> None:
-        """
-        Should change with minmaxnormalization 
-        sklearn.preprocessing.MinMaxScaler
-        """
+    def save_ground_shaking(self, dirc: str=None) -> None:
+        # Save the generated ground shaking
+        if dirc is None:
+            dirc = os.path.abspath(os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), 'results'))
+            
+        os.makedirs(dirc, exist_ok=True)
+        dirc = os.path.join(dirc, f"mw_{self.mw}_rhyp_{self.rhyp}_vs30_{self.vs30}.npz")
+        np.savez(dirc, label = self.label, GM_synthesis = self.gm_synth, fas_synthesis = self.fas_synth, tf_synthesis = self.tf_synth, freq = self.freq)
+        print(f"Ground shaking scenario with mw:{self.mw}, Rhyp:{self.rhyp}, vs30:{self.vs30} is saved in {dirc}")
         
-        self.scalemin = scalemin
-        self.scalemax = scalemax
-        self.pwr = pwr
-
-    def inverse(self, tf: np.ndarray) -> np.ndarray:
-
-        tf = (tf + 1) / 2
-        tf = (tf * (self.scalemax-self.scalemin)) + self.scalemin
-        tf = (10 ** tf) ** (1 / self.pwr)
-
-        return tf
-    
-    def forward(self, tf: np.ndarray) -> np.ndarray:
-        
-        tf = np.log10(tf ** self.pwr)
-        tf = (tf - self.scalemin) / (self.scalemax - self.scalemin)
-        tf = (tf * 2) - 1
-
-        return tf
-    
-    def save(self, dirc: str) -> None:
-        """
-        Save the normalization parameters
-        """
-        
-        np.save(dirc, [self.scalemin, self.scalemax, self.pwr])
-
-    def load(self, dirc: str) -> None:
-        """
-        Load the normalization parameters
-        """
-
-        self.scalemin, self.scalemax, self.pwr = np.load(dirc)
-
-        return self.scalemin, self.scalemax, self.pwr
