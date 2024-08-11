@@ -261,8 +261,8 @@ class TFCGAN:
         # Model directory and normalization parameters            
         self.dirc = dirc  # Model directory
         self.pwr = pwr  # Power or absolute
-        self.scalemin = scalemin * self.pwr  # Scaling (clipping the dynamic range)
-        self.scalemax = scalemax * self.pwr  # Maximum value
+        self.scalemin = scalemin   # Scaling (clipping the dynamic range)
+        self.scalemax = scalemax   # Maximum value
         self. noise_dim = noise_dim  # later space
 
         self.num_waveforms = 2
@@ -334,7 +334,7 @@ class TFCGAN:
 
         return np.linspace(0, 0.5, gm_synth.shape[-1]//2)/self.stft_operator.dt, fas_synth[:, :gm_synth.shape[-1]//2]
     
-        
+    @property 
     def get_time_axs(self) -> np.ndarray:
         """
         Time vector
@@ -358,9 +358,11 @@ class TFCGAN:
         """
         Return the time-frequency representation
         """
-
-        self.tf_synth = self.normalization.inverse(self.model.predict([self.label, self.noise_gen])[:, :, :, 0]) # simulate Time-frequency representation and descale it
-        return self.tf_synth
+        if not hasattr(self, "tf_synth"):
+            self.tf_synth = self.normalization.inverse(self.model.predict([self.label, self.noise_gen])[:, :, :, 0]) # simulate Time-frequency representation and descale it
+            return self.tf_synth
+        else:
+            return self.tf_synth
 
     @property
     def get_ground_shaking_synthesis(self) -> tuple:
