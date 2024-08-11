@@ -5,7 +5,7 @@
 
 import numpy as np
 
-class Normalization:
+class Data_normalization:
     def __init__(self,
                  scalemin: float = -10,
                  scalemax: float = 2.638887,

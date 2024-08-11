@@ -8,7 +8,7 @@ import numpy as np
 import typing as T
 
 import signal_tfcgan as signal_
-from normalization import Normalization
+from normalization import Data_normalization
 
 # ###############
 # TFCGAN
@@ -22,6 +22,7 @@ class TFCGAN:
                  pwr:float = 1,
                  noise_dim: int= 100,
                   ) -> None:
+        
         """        
         :param dirc: Trained model directory
         :param scalemin: Scale factor in Pre-processing step
@@ -57,6 +58,7 @@ class TFCGAN:
                      eps: float =1e-3,
                      verbose: bool = True,
                      ) -> None:
+        
         """
         Generate accelerogram for one scenario
             :param mw: Magnitude value
@@ -90,6 +92,10 @@ class TFCGAN:
         self.label[:, 0] = self.label[:, 0] * self.mw # Magnitude
         self.label[:, 1] = self.label[:, 1] * self.rhyp # Distance in km
         self.label[:, 2] = self.label[:, 2] * self.vs30/1000 # Vs30 in km/s
+
+        self.tf_synth = self.normalization.inverse(self.model.predict([self.label, self.noise_gen])[:, :, :, 0]) # simulate Time-frequency representation and descale it
+        #self.get_ground_shaking_synthesis
+        #self.get_fas_response
 
         return self.__repr__()
     
@@ -135,19 +141,18 @@ class TFCGAN:
     def get_tf_representation(self) -> np.ndarray:
         #Return the time-frequency representation
         
-        if not hasattr(self, "tf_synth"):
-            self.tf_synth = self.normalization.inverse(self.model.predict([self.label, self.noise_gen])[:, :, :, 0]) # simulate Time-frequency representation and descale it
+        if  hasattr(self, "tf_synth"):
             return self.tf_synth
         else:
-            return self.tf_synth
+            raise ValueError("Run the create_scenario method first")
+        
 
     @property
     def get_ground_shaking_synthesis(self) -> tuple:
         # Generate the ground shaking using phase retrieval algorithm
-        if not hasattr(self, "tf_synth"):
-            _ = self.get_tf_representation
 
         if  hasattr(self, "gm_synth"):
+            print(self.__repr__)
             return self.get_time_axs, self.gm_synth
         else:
             self.gm_synth = self.phase_retrieval.apply_on_data(self.tf_synth, self.mode) # reconstruct the ground shaking using PR and genrated TFR
@@ -197,14 +202,19 @@ class TFCGAN:
         self.freq, self.fas_synth = self.fft(self.gm_synth) 
         return self.freq, self.fas_synth
 
-    def save_ground_shaking(self, dirc: str=None) -> None:
+    def save_ground_shaking(self, dirc: str = None) -> None:
+
+
         # Save the generated ground shaking
         if dirc is None:
             dirc = os.path.abspath(os.path.join(
                 os.path.dirname(os.path.dirname(__file__)), 'results'))
-            
+    
         os.makedirs(dirc, exist_ok=True)
         dirc = os.path.join(dirc, f"mw_{self.mw}_rhyp_{self.rhyp}_vs30_{self.vs30}.npz")
-        np.savez(dirc, label = self.label, GM_synthesis = self.gm_synth, fas_synthesis = self.fas_synth, tf_synthesis = self.tf_synth, freq = self.freq)
-        print(f"Ground shaking scenario with mw:{self.mw}, Rhyp:{self.rhyp}, vs30:{self.vs30} is saved in {dirc}")
         
+        if  hasattr(self, "gm_synth") and hasattr(self, "gm_synth") and hasattr(self, "tf_synth") and hasattr(self, "fas_synth"):        
+            np.savez(dirc, label = self.label, GM_synthesis = self.gm_synth, fas_synthesis = self.fas_synth, tf_synthesis = self.tf_synth, freq = self.freq)
+            print(f"Ground shaking scenario with mw:{self.mw}, Rhyp:{self.rhyp}, vs30:{self.vs30} is saved in {dirc}")
+        else:
+            raise ValueError("Run the get_ground_shaking_synthesis and get_fas_response first")
