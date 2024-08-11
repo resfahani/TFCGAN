@@ -8,7 +8,7 @@ import numpy as np
 import typing as T
 
 import signal_tfcgan as signal_
-from normalization import Data_normalization
+from normalization import Data_Normalization
 
 # ###############
 # TFCGAN
@@ -186,7 +186,7 @@ class TFCGAN:
     @property
     def normalization(self) -> T.Callable:
         # return the normalization function
-        return Normalization(scalemin = self.scalemin, scalemax = self.scalemax, pwr = self.pwr)
+        return Data_Normalization(scalemin = self.scalemin, scalemax = self.scalemax, pwr = self.pwr)
 
     @property
     def noise_gen(self) -> np.ndarray:
