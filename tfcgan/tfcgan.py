@@ -17,12 +17,13 @@ import typing as T
 
 class STFT():
     def __init__(self, 
-                 sr: int = 100, 
+                 sr: float = 100, 
                  window_length: int = 128 + 64, 
-                 noverlap: int = 16,
+                 noverlap: int = 128+64-16,
                  n_fft: int = 256,
                  length: int = 4000,
                  ) -> None:
+        
         """
         Short Time Fourier Transform
             :param data: input signal
@@ -62,6 +63,11 @@ class STFT():
                                       noverlap = self.noverlap, nfft = self.n_fft, )        
         #self.rec_signal = librosa.istft(tfr, hop_length=self.hoplength, win_length=self.windowlength, length=self.length)
         return rec_signal
+
+    def __update__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        return self
     
     @property
     def dt(self) -> float:
@@ -91,7 +97,7 @@ class PhaseRetrieval:
             :param iteration_pr: Number of iteration in phase retrieval
             :param rho: ADMM parameter
             :param eps: ADMM parameter
-            :param contrain_mode: Type of contrain mode
+            :param contrain_mode: Type of contrain mode (type1 or type2)
 
         """
 
@@ -160,22 +166,28 @@ class PhaseRetrieval:
         eps = np.min(r) + self.eps
         if self.contrain_mode == "type1":
             v = (self.rho * y + 2 * r) / (self.rho + 2)
-        else:
+        elif self.contrain_mode == "type2":
             b = 1 / (r + eps) - self.rho * y
             delta = np.square(b) + 4 * self.rho
             v = (-b + np.sqrt(delta)) / (2 * self.rho)
+        else:
+            raise ValueError('compute_prox `contrain_mode` parameter should be in ("type1", "type2")')
+        
         return v
 
-    def apply_on_data(self, data: np.ndarray, mode: str | None = "ADMM") -> np.ndarray:
+    def apply_on_data(self, data: np.ndarray, mode: str = "ADMM") -> np.ndarray:
 
         x_rt = [] # Time-history list
 
         for i in range(data.shape[0]):
+
             if mode == "ADMM":
                 x = self.phase_retrieval_admm(tfr_m = data[i])
-            else:  # "GLA"
+            elif mode == "GLA":  # "GLA"
                 x = self.phase_retrieval_gla(tfr_m = data[i])
-
+            else:
+                raise ValueError('apply_on_data `mode` parameter should be in ("ADMM", "GLA")')
+            
             x_rt.append(x)
 
         return np.asarray(x_rt) # return the generated time-history
@@ -253,7 +265,7 @@ class TFCGAN:
         self. noise_dim = noise_dim  # later space
 
         self.num_waveforms = 2
-
+    
     def tf_synthesis(self,
                      mw: int | float = 7, 
                      rhyp: int | float = 10, 
@@ -263,6 +275,7 @@ class TFCGAN:
                      iter_pr:int = 20,
                      rho: float = 1e-5,
                      eps: float =1e-3,
+                     verbose: bool = True,
                      ) -> np.ndarray:
         """
         Generate accelerogram for one scenario
@@ -287,16 +300,33 @@ class TFCGAN:
         self.rho = rho # update the ADMM parameter
         self.eps = eps # update the ADMM parameter
         self.mode = mode # update the mode
-        
+        self.mw = mw # update the magnitude
+        self.rhyp = rhyp # update the distance
+        self.vs30 = vs30 # update the Vs30
+
         label = np.ones([self.num_waveforms, 3]) # Label vector
-        label[:, 0] = label[:, 0] * mw # Magnitude
-        label[:, 1] = label[:, 1] * rhyp # Distance in km
-        label[:, 2] = label[:, 2] * vs30/1000 # Vs30 in km/s
+        label[:, 0] = label[:, 0] * self.mw # Magnitude
+        label[:, 1] = label[:, 1] * self.rhyp # Distance in km
+        label[:, 2] = label[:, 2] * self.vs30/1000 # Vs30 in km/s
                 
         tf_simulation = self.model.predict([label, self.noise_gen])[:, :, :, 0] # simulate Time-frequency representation
         self.tf_synth = self.normalization.inverse(tf_simulation) # Descaled Time-frequency representation
 
+        if verbose:
+            print(self.__repr__())
+
         return self.tf_synth
+    
+    def __repr__(self) -> str:
+
+        return (
+            f"Moment magnitude = {self.mw}, "
+            f"hypocenter distance = {self.rhyp} km, "
+            f"Vs30 = {self.vs30} m/s, "
+            f"num_waveforms = {self.num_waveforms}, "
+            f"phase retrieval mode = {self.mode}, "
+            f"phase retrieval iteration = {self.iter_pr}, "
+            )
     
     def fft(self, gm_synth: np.ndarray) -> tuple:
         # non-normalized fft without any norm specification
@@ -308,13 +338,10 @@ class TFCGAN:
         return np.linspace(0, 0.5, gm_synth.shape[-1]//2)/self.stft_operator.dt, fas_synth[:, :gm_synth.shape[-1]//2]
     
     @property
-    def shaking_synthesis(self) -> tuple:
+    def get_ground_shaking_synthesis(self) -> tuple:
         """
         Generate the time-history
-        """
-        if self.mode not in ("ADMM", "GLA"):
-            raise ValueError('maker `mode` parameter should be in ("ADMM", "GLA")')
-        
+        """        
         self.gm_synth = self.phase_retrieval.apply_on_data(self.tf_synth, self.mode) # Reconstruct the time-history
         tx = np.arange(self.gm_synth.shape[-1]) * self.stft_operator.dt  # Time vector
 
@@ -358,7 +385,7 @@ class TFCGAN:
         return np.random.normal(0, 1, (self.num_waveforms, self.noise_dim))
     
     @property
-    def frequency_response(self) -> tuple:
+    def get_fas_response(self) -> tuple:
         # Frequency response of the generated time-history
         freq, fas_synth = self.fft(self.gm_synth) 
         return freq, fas_synth

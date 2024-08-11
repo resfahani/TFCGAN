@@ -43,16 +43,18 @@ mag = 7
 dist = 100
 vs30 = 760
 num_waveforms = 10
-
+# Model
 tfcgan = TFCGAN()
 
 # Generate time-frequency representation:
-tfr_ = tfcgan.tf_synthesis(mag, dist, vs30, num_waveforms)
+tfr_ = tfcgan.tf_synthesis(mag, dist, vs30, num_waveforms = num_waveforms)
 
-# Generate waveform
-tfc = tfcgan.shaking_synthesis
-# get waveform data:
-data = tfc[-1]
+# Generate waveform data
+t, data = tfcgan.shaking_synthesis
+
+# Generate Fourier amplitude spectra
+freq, fas = tfcgan.fas_response
+
 # data is a Numpy Matrix of shape (num_waveforms, 4000). 
 # Each waveform delta time is 0.01 sec 
 # (i.e., each waveform is 40s long by default)
