@@ -57,12 +57,8 @@ class STFT():
         #self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
         #self.freq, self.time, self.tfr = self.stft(signal, self.fs, self.window, self.hoplength, self.nfft)
 
-        freq_ax, time_ax, tfr_complex = signal.stft(x_signal, 
-                                                    window = self.window, 
-                                                    nperseg = len(self.window),
-                                                    noverlap = self.hoplength, 
-                                                    nfft = self.nfft, 
-                                                    return_onesided = True,
+        freq_ax, time_ax, tfr_complex = signal.stft(x_signal, window = self.window,  nperseg = len(self.window),
+                                                    noverlap = self.hoplength, nfft = self.nfft, return_onesided = True,
                                                     )
 
 
@@ -80,11 +76,8 @@ class STFT():
 
         """
 
-        _, rec_signal =  signal.istft(tfr, 
-                                      window = self.window, 
-                                      nperseg = len(self.window), 
-                                      noverlap = self.hoplength, 
-                                      nfft = self.nfft, 
+        _, rec_signal =  signal.istft(tfr, window = self.window,  nperseg = len(self.window), 
+                                      noverlap = self.hoplength, nfft = self.nfft, 
                                       )
         
 
@@ -99,6 +92,9 @@ class STFT():
         windowing the signal
         """
         return signal.get_window('hann', self.windowlength)
+
+
+
 
 
 
@@ -124,19 +120,16 @@ def phase_retrieval_gla(
     #generate random phase
     phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
 
-    recon_sig = stft_operator.istft(
-        mag * np.exp(phase * 1j))
-        
+    recon_sig = stft_operator.istft(mag * np.exp(phase * 1j))
     recon_sig = filter_data(recon_sig, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
     
     for i in range(iteration_pr):
+
         recon_tfr = stft_operator.stft(recon_sig)
         #recon_tfr = recon_tfr[:128,:]
         phase = np.angle(recon_tfr)
         recon_tfr = mag * np.exp(1j * phase)
-        recon_sig = stft_operator.istft(
-            recon_tfr
-            )
+        recon_sig = stft_operator.istft(recon_tfr)
         
     return recon_sig
 
@@ -247,6 +240,8 @@ def filter_data(
     return datafilter
 
 
+
+
 # ######
 # TFCGAN
 # ######
@@ -299,7 +294,6 @@ class TFCGAN:
         self.n_realization = 2
 
 
-
     # Generate TFR
     def tf_simulator(
             self,
@@ -322,14 +316,12 @@ class TFCGAN:
 
         """
         
-        mag = np.ones([self.n_realization, 1]) * mag
-        dis = np.ones([self.n_realization, 1]) * dis
-        vs = np.ones([self.n_realization, 1]) * vs / 1000
+        mag = np.ones([self.n_realization, 1]) * mag # Magnitude
+        dis = np.ones([self.n_realization, 1]) * dis # Distance in km
+        vs = np.ones([self.n_realization, 1]) * vs / 1000 # Vs30 in km/s
         
         label = np.concatenate([mag, dis, vs], axis=1)
-
         tf_simulation = self.model.predict([label, noise_vec])[:, :, :, 0]
-
         tf_simulation = self.normalization.inverse(tf_simulation)
 
         return tf_simulation
@@ -405,35 +397,25 @@ class TFCGAN:
                         ) -> np.ndarray:
         
         """
+        Phase retrieval algorithm
 
-            
         """
         x_rt = []
 
         if mode == "ADMM":
             for i in range(self.n_realization):
-
-                x = phase_retrieval_admm(tfr_m = tf_data[i, :, :], 
-                                         rho = rho, 
-                                         eps = eps, 
-                                         stft_operator = self.stft_operator,
-                                         iteration_pr = iter_pr
-                                         )
-                
+                x = phase_retrieval_admm(tfr_m = tf_data[i, ...], rho = rho, eps = eps, stft_operator = self.stft_operator, iteration_pr = iter_pr)
                 x_rt.append(x)
 
         else:  # "GLA"
             for i in range(self.n_realization):
-                x = phase_retrieval_gla(tfr_m = tf_data[i, :, :], 
-                                        iteration_pr = iter_pr,
-                                        stft_operator = self.stft_operator,
-                                        )
-                
+                x = phase_retrieval_gla(tfr_m = tf_data[i, ...], iteration_pr = iter_pr, stft_operator = self.stft_operator )
                 x_rt.append(x)
 
         return np.asarray(x_rt) # return the generated time-history
     
     
+
     def fft(self, s:np.ndarray) -> tuple:
         # non-normalized fft without any norm specification
         
@@ -451,6 +433,7 @@ class TFCGAN:
 
     @property
     def model(self) -> T.Callable:
+        # Load the trained model
         return keras.models.load_model(self.dirc)
     
     @property
@@ -462,12 +445,13 @@ class TFCGAN:
     
     @property
     def get_tfr(self) -> np.ndarray:
+        # return the time-frequency representation
         return self.tf_synth
 
     @property
-    def normalization(self) -> T.Callable:        
+    def normalization(self) -> T.Callable:
+        # return the normalization function
         return Normalization(scalemin = self.scalemin, scalemax = self.scalemax, pwr = self.pwr)
-
 
 
 # ###############
