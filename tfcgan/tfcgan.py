@@ -125,7 +125,6 @@ class PhaseRetrieval:
     def phase_retrieval_admm(self, tfr_m: np.ndarray) -> np.ndarray:     
         """
         phase retrieval algorithm based on ADMM algorithm for phase retrieval based on Bregman divergences
-
         # Code modified from https://github.com//phvial/PRBregDiv
         """
 
@@ -181,7 +180,6 @@ class PhaseRetrieval:
 
         return np.asarray(x_rt) # return the generated time-history
     
-
 # ###############
 # Filter
 # ###############
@@ -294,16 +292,10 @@ class TFCGAN:
         label[:, 0] = label[:, 0] * mw # Magnitude
         label[:, 1] = label[:, 1] * rhyp # Distance in km
         label[:, 2] = label[:, 2] * vs30/1000 # Vs30 in km/s
-        
-        # mag = np.ones([self.n_realization, 1]) * mag # Magnitude
-        # dis = np.ones([self.n_realization, 1]) * dis # Distance in km
-        # vs = np.ones([self.n_realization, 1]) * vs / 1000 # Vs30 in km/s
-        
-        # label = np.concatenate([mag, dis, vs], axis=1) # Label vector
-        
+                
         tf_simulation = self.model.predict([label, self.noise_gen])[:, :, :, 0] # simulate Time-frequency representation
         self.tf_synth = self.normalization.inverse(tf_simulation) # Descaled Time-frequency representation
-        
+
         return self.tf_synth
     
     def fft(self, gm_synth: np.ndarray) -> tuple:
