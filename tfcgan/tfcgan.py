@@ -2,7 +2,8 @@
 core module
 """
 import os
-from tensorflow import keras
+#from tensorflow import keras
+import keras
 import numpy as np
 from scipy.signal.windows import tukey
 from scipy import signal
@@ -13,6 +14,8 @@ import typing as T
 # ###############
 # Short Time Fourier Transform
 # ###############
+
+
 
 
 class STFT(signal.ShortTimeFFT):
@@ -39,10 +42,9 @@ class STFT(signal.ShortTimeFFT):
         self.nfft = nfft
 
 
-    def stft(
-            self, 
-            signal: np.ndarray
-            ) -> np.ndarray:
+    def stft(self, 
+             signal: np.ndarray
+             ) -> np.ndarray:
         
         """
         forward Short Time Fourier Transform
@@ -53,10 +55,9 @@ class STFT(signal.ShortTimeFFT):
 
         return self.freq, self.time, self.tfr
     
-    def istft(
-            self,
-            tfr: np.ndarray,
-            ) -> np.ndarray:
+    def istft(self,
+              tfr: np.ndarray,
+              ) -> np.ndarray:
         
         """
         inverse Short Time Fourier Transform
@@ -67,6 +68,7 @@ class STFT(signal.ShortTimeFFT):
         
         return rec_signal
     
+    
 
 # ###############
 # Phase retrieval
@@ -74,8 +76,8 @@ class STFT(signal.ShortTimeFFT):
 
 def phase_retrieval_gla(
         tfr_m: np.ndarray,
-        iteration_pr: np.int = 10,
-        stft_operator: T.Callable[np.ndarray, np.ndarray]: 
+        iteration_pr: int = 10,
+        stft_operator = None,
         ) -> np.ndarray:
 
     """ 
@@ -121,15 +123,14 @@ def pra_admm(
     #generate random phase
     phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))
     #generate random phase
-    tfr = mag * np.exp(1j * phase)
-    rec_signal = librosa.istft(tfr, hop_length=hop_length, win_length=win_length, length=4000)
-    a = 0
-    #x = my_filter(x, 0.05, 48, 100)
+    a = 0 
+
+    rec_signal = stft_operator.istft(mag * np.exp(1j * phase))
 
     for ii in range(iteration_pr):
-        rec_tfr = stft_operator.stft(rec_signal)
+        recon_tfr = stft_operator.stft(rec_signal)
         
-        h = rec_tfr + (1/rho) * a
+        h = recon_tfr + (1/rho) * a
         ph = np.angle(h)
         u = compute_prox(abs(h), mag, rho, eps, ab)
         z = u * np.exp(1j * ph)
@@ -206,7 +207,6 @@ def filter_data(
 
 
 class TFCGAN:
-
     def __init__(
             self,
             dirc: str = None,
@@ -215,10 +215,10 @@ class TFCGAN:
             pwr:float = 1,
             noise_dim: int= 100,
             mtype: int=1,
-            self.dt: float = 0.01,
-            self.nfft: int = 256,
-            self.hop_length: int = 16,
-            self.win_length: int = 128 + 64,
+            dt: float = 0.01,
+            nfft: int = 256,
+            hop_length: int = 16,
+            win_length: int = 128 + 64,
             ) -> None:
         
         """        
@@ -251,7 +251,7 @@ class TFCGAN:
         self.hop_length = hop_length
         self.win_length = win_length
 
-        self.stft_operator = STFT(self.dt, self.win_length, self.hop_length, self.nfft)
+        #self.stft_operator = STFT(self.dt, self.win_length, self.hop_length, self.nfft)
     
         self.model = keras.models.load_model(self.dirc)
 
@@ -259,24 +259,24 @@ class TFCGAN:
     # Generate TFR
     def tf_generator(
             self,
-            mag: T.Union[int, float],
-            dis: T.Union[int, float], 
-            vs: T.Union[int, float] , 
-            noise: np.ndarray, 
+            mag: int | float,
+            dis: int | float, 
+            vs: int | float, 
+            noise_vec: np.ndarray,
             num_real: int = 1,
             ) -> np.ndarray:
-         
+        
         """
         Generate TF representation for one scenario
 
         :param mag: Magnitude value
         :param dis: Distance value
         :param vs: Vs30 value
-        :param noise: random noise vector
+        :param noise_vec: random noise vector
         :param ngen: Number of generated waveforms
         
         :return: Descaled Time-frequency representation
-        
+
         """
         
         mag = np.ones([num_real, 1]) * mag
@@ -285,11 +285,8 @@ class TFCGAN:
         
         label = np.concatenate([mag, dis, vs], axis=1)
 
-        tf = self.model.predict([label, noise])[:, :, :, 0]
+        tf = self.model.predict([label, noise_vec])[:, :, :, 0]
 
-        tf = (tf + 1) / 2
-        tf = (tf * (self.scalemax-self.scalemin)) + self.scalemin
-        tf = (10 ** tf) ** (1 / self.pwr)
         
         return tf
     
@@ -297,10 +294,10 @@ class TFCGAN:
 
     def simulator(
             self,
-            mw: T.Union[int, float] = 7, 
-            rhyp: T.Union[int, float] = 10, 
-            vs30: T.Union[int, float] = 760, 
-            num_real: int = 1,
+            mw: int | float = 7, 
+            rhyp: int | float = 10, 
+            vs30: int | float = 760, 
+            n_realization: int = 1,
             iter_pr:int=10,
             mode: str = "ADMM",
             rho: float = 1e-5,
@@ -308,46 +305,41 @@ class TFCGAN:
             ab=1) -> tuple:
         
         """
+
         Generate accelerogram for one scenario
 
-        :param mag: Magnitude value
-        :param dis: Distance value
-        :param vs: Vs30 value
-        :param ngen: Number of generated time-histories
-        :param pr_int: Number of iteration in Phase retrieval
-        :param mode: Type of Phase retireval algorithm
-            "GLA": Griffin-Lim Algorithm
-            "ADMM": ADMM algorithm for phase retireval based on Bregman
-            divergences (https://hal.archives-ouvertes.fr/hal-03050635/document)
-        :param rho: FIXME: add doc
-        :param eps: FIXME add doc
-        :param ab: FIXME add doc
+            :param mw: Magnitude value
+            :param rhyp: Distance value
+            :param vs30: Vs30 value
+            :param n_realization: Number of generated time-histories
+            :param iter_pr: Number of iteration in Phase retrieval
+            :param mode: Type of Phase retrieval algorithm
+                "ADMM": ADMM algorithm for phase retrieval based on Bregman divergences (https://hal.archives-ouvertes.fr/hal-03050635/document)
+            :return: a 5-element tuple
+                freq: frequency vector
+                s: Descaled Time-frequency representation matrix
+                x: Generated time-history matrix
 
-        :return: a 4-elem,ent tuple  # FIXME: order mismatch? (see code below)
-            tx: time vector
-            freq = frequency vector
-            xh: Generated time-history matrix
-            S: Descaled Time-frequency representation matrix
         """
         if mode not in ("ADMM", "GLA"):
             raise ValueError('maker `mode` parameter should be in ("ADMM", "GLA")')
 
-        noise = np.random.normal(0, 1, (num_real, self.noise_dim))
+        noise = np.random.normal(0, 1, (n_realization, self.noise_dim))
 
         s = self.tf_generator(mw,
                               rhyp, 
                               vs30, 
                               noise, 
-                              ngen = num_real,
+                              ngen = n_realization,
                               )
 
         # TODO: two lines below replaced by np.zeros. Check and cleanup in case:
         # x = np.empty((ngen, 4000))
         # x[:] = 0
-        x = np.zeros((num_real, 4000))
+        x = np.zeros((n_realization, 4000))
 
         if mode == "ADMM":
-            for i in range(num_real):
+            for i in range(n_realization):
 
                 x[i, :] = pra_admm(s[i, :, :], 
                                    rho, 
@@ -357,7 +349,7 @@ class TFCGAN:
                                    )
                 
         else:  # "GLA"
-            for i in range(num_real):
+            for i in range(n_realization):
                 x[i, :] = phase_retrieval_gla(s[i, :, :], 
                                               iter_pr
                                               )
@@ -381,3 +373,71 @@ class TFCGAN:
         freq = np.linspace(0, 0.5, n)/self.dt
         
         return freq, lp.T
+    
+
+class Normalization:
+    def __init__(self,
+                    scalemin: float = -10,
+                    scalemax: float = 2.638887,
+                    pwr: float = 1,
+                 ) -> None:
+        
+        """
+        Should change with minmaxnormalization 
+        sklearn.preprocessing.MinMaxScaler
+
+        """
+    
+    def forward(self, 
+                tf: np.ndarray
+                ) -> np.ndarray:
+        
+        """
+        Forward scaling
+            
+            """
+        
+        tf = (tf + 1) / 2
+        tf = (tf * (self.scalemax-self.scalemin)) + self.scalemin
+        tf = (10 ** tf) ** (1 / self.pwr)
+
+        return tf
+    
+    def inverse(self, 
+                tf: np.ndarray
+                ) -> np.ndarray:
+        
+        """
+        Inverse scaling 
+            
+            """
+        
+        tf = np.log10(tf ** self.pwr)
+        tf = (tf - self.scalemin) / (self.scalemax - self.scalemin)
+        tf = (tf * 2) - 1
+
+        return tf
+    
+    def save(self, 
+             dirc: str
+             ) -> None:
+        
+        """
+        Save the normalization parameters
+            
+            """
+        
+        np.save(dirc, [self.scalemin, self.scalemax, self.pwr])
+
+    def load(self, 
+             dirc: str
+             ) -> None:
+        
+        """
+        Load the normalization parameters
+            
+            """
+        
+        self.scalemin, self.scalemax, self.pwr = np.load(dirc)
+        
+        return self.scalemin, self.scalemax, self.pwr
