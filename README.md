@@ -10,7 +10,6 @@ TFCGAN
 
 </div>
 
-
 `TFCGAN` is a python package for strong ground motion simulation in time-frequency domain (TF) based on based on conditional generative adversarial network and phase retrieval approaches. 
 
 
@@ -93,4 +92,17 @@ update require
 Performance
 -----------
 
+
+Citation
+----------
+@article{esfahani2023tfcgan,
+  title={TFCGAN: Nonstationary Ground-Motion Simulation in the Time--Frequency Domain Using Conditional Generative Adversarial Network (CGAN) and Phase Retrieval Methods},
+  author={Esfahani, Reza DD and Cotton, Fabrice and Ohrnberger, Matthias and Scherbaum, Frank},
+  journal={Bulletin of the Seismological Society of America},
+  volume={113},
+  number={1},
+  pages={453--467},
+  year={2023},
+  publisher={Seismological Society of America}
+}
 </div>
