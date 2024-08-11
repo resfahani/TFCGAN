@@ -97,7 +97,6 @@ Citation
 ----------
 
 </div>
-.. admonition:: 
 
     Esfahani, Reza DD, Fabrice Cotton, Matthias Ohrnberger, and Frank Scherbaum. 
     "TFCGAN: Nonstationary Ground‐Motion Simulation in the Time–Frequency Domain 
