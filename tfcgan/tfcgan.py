@@ -11,11 +11,9 @@ from scipy.signal import butter, sosfiltfilt
 import typing as T
 #import librosa
 
-
 # ###############
 # Short Time Fourier Transform
 # ###############
-
 
 class STFT():
     def __init__(self, 
@@ -43,9 +41,7 @@ class STFT():
         self.nfft = nfft
         self.length = length
 
-    def stft(self, 
-             x_signal: np.ndarray,
-             ) -> np.ndarray:
+    def stft(self, x_signal: np.ndarray) -> np.ndarray:
         
         """
         forward Short Time Fourier Transform
@@ -55,24 +51,20 @@ class STFT():
         #self.freq, self.time, self.tfr = self.stft(signal, self.fs, self.window, self.hoplength, self.nfft)
 
         freq_ax, time_ax, tfr_complex = signal.stft(x_signal, window = self.window,  nperseg = len(self.window),
-                                                    noverlap = self.hoplength, nfft = self.nfft, return_onesided = True,
-                                                    )
+                                                    noverlap = self.hoplength, nfft = self.nfft, return_onesided = True,)
         
         #self.tfr_complex = librosa.stft(x_signal, hop_length=self.hoplength, win_length=self.windowlength, n_fft = self.nfft)[:128,:248]
 
         return tfr_complex[:128,:]
 
-    def istft(self,
-              tfr: np.ndarray,
-              ) -> np.ndarray:
+    def istft(self, tfr: np.ndarray) -> np.ndarray:
         
         """
         inverse Short Time Fourier Transform
         """
 
         _, rec_signal =  signal.istft(tfr, window = self.window,  nperseg = len(self.window), 
-                                      noverlap = self.hoplength, nfft = self.nfft, 
-                                      )        
+                                      noverlap = self.hoplength, nfft = self.nfft, )        
         #self.rec_signal = librosa.istft(tfr, hop_length=self.hoplength, win_length=self.windowlength, length=self.length)
         return rec_signal
     
@@ -87,11 +79,10 @@ class STFT():
 # Phase retrieval
 # ###############
 
-def phase_retrieval_gla(
-        tfr_m: np.ndarray,
-        stft_operator: T.Callable,
-        iteration_pr: int = 10,
-        ) -> np.ndarray:
+def phase_retrieval_gla(tfr_m: np.ndarray, 
+                        stft_operator: T.Callable, 
+                        iteration_pr: int = 10,
+                        ) -> np.ndarray:
 
     """ 
     phase retrieval algorithm based on Griffin-Lim Algorithm
@@ -99,60 +90,48 @@ def phase_retrieval_gla(
     """
 
     mag = np.abs(tfr_m) #absolute magnitude
-    #generate random phase
-    phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
+    phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1])) # phase initialization
 
-    recon_sig = stft_operator.istft(mag * np.exp(phase * 1j))
-    recon_sig = filter_data(recon_sig, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
-    
-    for i in range(iteration_pr):
+    recon_sig = stft_operator.istft(mag * np.exp(phase * 1j)) # reconstruct the signal
+    recon_sig = filter_data(recon_sig, 0.1, 20, sr=100, filtertype='bp', filter_order=4) # Filtering the signal
 
-        recon_tfr = stft_operator.stft(recon_sig)
+    for i in range(iteration_pr): # number of iteration
+        recon_tfr = stft_operator.stft(recon_sig) #calculate the tfr
         #recon_tfr = recon_tfr[:128,:]
-        phase = np.angle(recon_tfr)
-        recon_tfr = mag * np.exp(1j * phase)
-        recon_sig = stft_operator.istft(recon_tfr)
-        
+        phase = np.angle(recon_tfr) # get the phase
+        recon_tfr = mag * np.exp(1j * phase) # mix with magnitude
+        recon_sig = stft_operator.istft(recon_tfr) # update the reconstructed signal
+
     return recon_sig
 
-
-def phase_retrieval_admm(
-        tfr_m: np.ndarray, 
-        stft_operator: T.Callable,
-        rho: float = 1e-5, 
-        eps: float = 1e-3, 
-        iteration_pr: int = 10, 
-        contrain_mode: str = "type1",
-        ) -> np.ndarray: 
-    
+def phase_retrieval_admm(tfr_m: np.ndarray, 
+                         stft_operator: T.Callable,
+                         rho: float = 1e-5, 
+                         eps: float = 1e-3, 
+                         iteration_pr: int = 10, 
+                         contrain_mode: str = "type1",
+                         ) -> np.ndarray:     
     """
     phase retrieval algorithm based on ADMM algorithm for phase retrieval based on Bregman divergences
 
     # Code modified from https://github.com//phvial/PRBregDiv
     """
 
-    #get magnitude
-    mag = np.absolute(tfr_m)
-    #generate random phase
-    phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))
+    mag = np.absolute(tfr_m)     #get absolute magnitude
+    phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))     #initialization
 
-    #generate random phase
     aux_var1 = 0 
-
-    rec_signal = stft_operator.istft(mag * np.exp(1j * phase))
-
-    rec_signal = filter_data(rec_signal, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
+    rec_signal = stft_operator.istft(mag * np.exp(1j * phase)) # reconstruct the signal (initial signal)
+    #rec_signal = filter_data(rec_signal, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
 
     for ii in range(iteration_pr):
-
         recon_tfr = stft_operator.stft(rec_signal)
         #recon_tfr = recon_tfr[:128,:]
-
         h = recon_tfr + (1/rho) * aux_var1
         ph = np.angle(h)
         aux_var_u = compute_prox(abs(h), mag, rho, eps, contrain_mode)
         aux_var_z = aux_var_u * np.exp(1j * ph)
-        
+
         rec_signal = stft_operator.istft(aux_var_z - (1/rho) * aux_var1)
         x_hat = stft_operator.stft(rec_signal)
         x_hat = x_hat[:128,:]   
@@ -170,35 +149,27 @@ def compute_prox(
         contrain_mode: str = "type1",
         ) -> np.ndarray:
     
-
     """
     # Code modified from https://github.com//phvial/PRBregDiv
     # Compute the proximal operator of the l1 norm
     """
-    
-    eps = np.min(r) + eps
 
+    eps = np.min(r) + eps
     if contrain_mode == "type1":
         v = (rho * y + 2 * r) / (rho + 2)
-
     else:
         b = 1 / (r + eps) - rho * y
         delta = np.square(b) + 4 * rho
         v = (-b + np.sqrt(delta)) / (2 * rho)
-
     return v
 
-
-
-
-def filter_data(
-        data: np.ndarray, 
-        freqmin: T.Union[float, int, None],
-        freqmax: T.Union[float, int, None],
-        sr: int = 40, 
-        filtertype: str = 'bp',
-        filter_order: int = 10,
-        ) -> np.ndarray:
+def filter_data(data: np.ndarray, 
+                freqmin: T.Union[float, int, None],
+                freqmax: T.Union[float, int, None],
+                sr: int = 40, 
+                filtertype: str = 'bp',
+                filter_order: int = 10,
+                ) -> np.ndarray:
     
     """
     # Filter the data using butterworth filter
@@ -211,45 +182,34 @@ def filter_data(
     
     return: Filtered signal
     """
-    
+
     if filtertype == 'bp' and (freqmin is not None or freqmax is not None):
         sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr, output='sos')
-
     elif filtertype == 'lp' and freqmax is not None:
         sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos')
-
     elif filtertype == 'hp' and freqmin is not None:
         sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos')
-
     else:
         raise ValueError('filter_data `filtertype` parameter should be in ("bp", "lp", "hp")')
+    
+    return sosfiltfilt(sos, data, axis=-1)
 
-    datafilter = sosfiltfilt(sos, data, axis=-1)
-
-    return datafilter
-
-
-
-
-# ######
+# ###############
 # TFCGAN
-# ######
-
+# ###############
 
 class TFCGAN:
-    def __init__(
-            self,
-            dirc: str = None,
-            scalemin: float = -10,
-            scalemax:float = 2.638887,
-            pwr:float = 1,
-            noise_dim: int= 100,
-            dt: float = 0.01,
-            nfft: int = 256,
-            hop_length: int = 16,
-            win_length: int = 128 + 64,
-            ) -> None:
-        
+    def __init__(self,
+                 dirc: str = None,
+                 scalemin: float = -10,
+                 scalemax:float = 2.638887,
+                 pwr:float = 1,
+                 noise_dim: int= 100,
+                 dt: float = 0.01,
+                 nfft: int = 256,
+                 hop_length: int = 16,
+                 win_length: int = 128 + 64,
+                 ) -> None:
         """        
         :param dirc: Trained model directory
         :param scalemin: Scale factor in Pre-processing step
@@ -263,35 +223,31 @@ class TFCGAN:
         :param hop_length: Hop length
         :param win_length: Window length
         """
-
         if dirc is None:
             dirc = os.path.abspath(os.path.join(
                 os.path.dirname(os.path.dirname(__file__)), 'model'))
             
+        # Model directory and normalization parameters            
         self.dirc = dirc  # Model directory
         self.pwr = pwr  # Power or absolute
         self.scalemin = scalemin * self.pwr  # Scaling (clipping the dynamic range)
         self.scalemax = scalemax * self.pwr  # Maximum value
         self. noise_dim = noise_dim  # later space
-    
-        # STFT parameters
 
-        self.dt = 0.01
+        # STFT parameters
+        self.dt = dt
         self.nfft = nfft
         self.hop_length = hop_length
         self.win_length = win_length
         self.n_realization = 2
 
-
     # Generate TFR
-    def tf_simulator(
-            self,
-            mag: int | float,
-            dis: int | float, 
-            vs: int | float, 
-            noise_vec: np.ndarray,
-            ) -> np.ndarray:
-        
+    def tf_simulator(self,
+                     mag: int | float,
+                     dis: int | float, 
+                     vs: int | float, 
+                     noise_vec: np.ndarray,
+                     ) -> np.ndarray:
         """
         Generate TF representation for one scenario
 
@@ -315,21 +271,17 @@ class TFCGAN:
 
         return tf_simulation
     
-
-
-    # Calculate the TF, Time-history, and FAS
-    
+    # Calculate the TF, Time-history, and FAS    
     def signal_simulator(self,
-                  mw: int | float = 7, 
-                  rhyp: int | float = 10, 
-                  vs30: int | float = 760, 
-                  n_realization: int = 1,
-                  mode: str = "ADMM",
-                  iter_pr:int = 20,
-                  rho: float = 1e-5,
-                  eps: float =1e-3,
-                  ) -> tuple:
-        
+                         mw: int | float = 7, 
+                         rhyp: int | float = 10, 
+                         vs30: int | float = 760, 
+                         n_realization: int = 1,
+                         mode: str = "ADMM",
+                         iter_pr:int = 20,
+                         rho: float = 1e-5,
+                         eps: float =1e-3,
+                         ) -> tuple:
         """
         Generate accelerogram for one scenario
             :param mw: Magnitude value
@@ -349,13 +301,11 @@ class TFCGAN:
         """
 
         self.n_realization = n_realization # update the number of realization
-
         if mode not in ("ADMM", "GLA"):
             raise ValueError('maker `mode` parameter should be in ("ADMM", "GLA")')
 
         noise = np.random.normal(0, 1, (self.n_realization, self.noise_dim)) # Random noise vector for generator (100,) for each realization
         self.tf_synth = self.tf_simulator(mw, rhyp, vs30, noise) # Simulation of Time-frequency representation 
-
         self.gm_synth = self.phase_retrieval(self.tf_synth, iter_pr, mode, rho, eps) # Reconstruct the time-history
         self.gm_synth = filter_data(self.gm_synth, 0.1, 20, sr=100, filtertype='bp', filter_order=4) # Filtering the time-history
 
@@ -372,7 +322,6 @@ class TFCGAN:
         return freq, gm_synth
     
     
-
     def phase_retrieval(self, 
                         tf_data : np.ndarray,
                         iter_pr: int = 20, 
@@ -401,7 +350,6 @@ class TFCGAN:
                 x_rt.append(x)
 
         return np.asarray(x_rt) # return the generated time-history
-    
     
 
     def fft(self, gm_synth: np.ndarray) -> tuple:
