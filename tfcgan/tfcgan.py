@@ -9,7 +9,7 @@ from scipy.signal.windows import tukey
 from scipy import signal
 from scipy.signal import butter, sosfiltfilt
 import typing as T
-import librosa
+#import librosa
 
 
 # ###############
@@ -43,12 +43,12 @@ class STFT():
         self.length = length
 
 
-        self.window = signal.get_window('hann', self.windowlength)
+        #self.window = signal.get_window('hann', self.windowlength)
 
 
     def stft(self, 
              x_signal: np.ndarray,
-             ) -> T.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+             ) -> np.ndarray:
         
         """
         forward Short Time Fourier Transform
@@ -92,12 +92,14 @@ class STFT():
 
         return rec_signal
     
+
     @property
-    def windowing(self):
+    def window(self) -> np.ndarray:
         """
         windowing the signal
         """
-        self.window = signal.get_window('hann', self.windowlength)
+        return signal.get_window('hann', self.windowlength)
+
 
 
 # ###############
@@ -296,7 +298,7 @@ class TFCGAN:
         self.win_length = win_length
         self.n_realization = 2
 
-        self.normalization = Normalization(scalemin = self.scalemin, scalemax = self.scalemax, pwr = self.pwr)
+
 
     # Generate TFR
     def tf_simulator(
@@ -345,7 +347,7 @@ class TFCGAN:
                   iter_pr:int = 20,
                   rho: float = 1e-5,
                   eps: float =1e-3,
-                  ) -> np.ndarray:
+                  ) -> tuple:
         
 
         """
@@ -374,15 +376,15 @@ class TFCGAN:
 
         noise = np.random.normal(0, 1, (self.n_realization, self.noise_dim))
 
-        tf_synth = self.tf_simulator(mw, rhyp, vs30, noise)
+        self.tf_synth = self.tf_simulator(mw, rhyp, vs30, noise)
 
-        gm_synth = self.phase_retrieval(tf_synth, iter_pr, mode, rho, eps)
+        self.gm_synth = self.phase_retrieval(self.tf_synth, iter_pr, mode, rho, eps)
 
-        gm_synth = filter_data(gm_synth, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
+        self.gm_synth = filter_data(self.gm_synth, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
 
-        tx = np.arange(gm_synth.shape[-1]) * self.dt
+        tx = np.arange(self.gm_synth.shape[-1]) * self.dt
 
-        return  tx, gm_synth
+        return  tx, self.gm_synth
     
 
     def frequency_response(self, gm_synth: np.ndarray) -> tuple:
@@ -432,7 +434,7 @@ class TFCGAN:
         return np.asarray(x_rt) # return the generated time-history
     
     
-    def fft(self, s):
+    def fft(self, s:np.ndarray) -> tuple:
         # non-normalized fft without any norm specification
         
         if len(s.shape) == 1:
@@ -448,16 +450,29 @@ class TFCGAN:
 
 
     @property
-    def model(self):
+    def model(self) -> T.Callable:
         return keras.models.load_model(self.dirc)
     
     @property
-    def stft_operator(self):
+    def stft_operator(self) ->T.Callable:
         return STFT(sr = int(1/self.dt), 
                     window = self.win_length, 
                     hoplength = self.hop_length, 
                     nfft = self.nfft)
     
+    @property
+    def get_tfr(self) -> np.ndarray:
+        return self.tf_synth
+
+    @property
+    def normalization(self) -> T.Callable:        
+        return Normalization(scalemin = self.scalemin, scalemax = self.scalemax, pwr = self.pwr)
+
+
+
+# ###############
+## Normalization
+# ############### 
 
 
 class Normalization:
