@@ -39,6 +39,7 @@ tested, please provide feedback in case of import errors):
 ```python
 from tfcgan.tfcgan import TFCGAN
 # setup your parameters. Example:
+
 mag = 7
 dist = 100
 vs30 = 760
@@ -46,14 +47,17 @@ num_waveforms = 10
 # Model
 tfcgan = TFCGAN()
 
-# Generate time-frequency representation:
-tfr_ = tfcgan.tf_synthesis(mag, dist, vs30, num_waveforms = num_waveforms)
+# Generate labels for a specific scenario
+tfcgan.create_scenario(mag, dist, vs30, num_waveforms = num_waveforms)
+
+# Generate the time-frequency representation
+tf = model.get_tf_representation
 
 # Generate waveform data
-t, data = tfcgan.shaking_synthesis
+t, data = tfcgan.get_ground_shaking_synthesis
 
 # Generate Fourier amplitude spectra
-freq, fas = tfcgan.fas_response
+freq, fas = tfcgan.get_fas_response
 
 # data is a Numpy Matrix of shape (num_waveforms, 4000). 
 # Each waveform delta time is 0.01 sec 

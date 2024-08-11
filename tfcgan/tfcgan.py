@@ -10,6 +10,7 @@ from scipy import signal
 from scipy.signal import butter, sosfiltfilt
 import typing as T
 #import librosa
+from tqdm.auto import tqdm
 
 # ###############
 # Short Time Fourier Transform
@@ -179,7 +180,7 @@ class PhaseRetrieval:
 
         x_rt = [] # Time-history list
 
-        for i in range(data.shape[0]):
+        for i in tqdm(range(data.shape[0]), desc="Phase retrieval", leave = True):
 
             if mode == "ADMM":
                 x = self.phase_retrieval_admm(tfr_m = data[i])
@@ -266,7 +267,7 @@ class TFCGAN:
 
         self.num_waveforms = 2
     
-    def tf_synthesis(self,
+    def create_scenario(self,
                      mw: int | float = 7, 
                      rhyp: int | float = 10, 
                      vs30: int | float = 760, 
@@ -276,7 +277,7 @@ class TFCGAN:
                      rho: float = 1e-5,
                      eps: float =1e-3,
                      verbose: bool = True,
-                     ) -> np.ndarray:
+                     ) -> None:
         """
         Generate accelerogram for one scenario
             :param mw: Magnitude value
@@ -295,6 +296,8 @@ class TFCGAN:
                 self.gm_synth: Generated time-history matrix
         """
 
+        self.delete_attr # delete the attributes
+
         self.num_waveforms = num_waveforms # update the number of realization
         self.iter_pr = iter_pr # update the number of iteration
         self.rho = rho # update the ADMM parameter
@@ -304,18 +307,12 @@ class TFCGAN:
         self.rhyp = rhyp # update the distance
         self.vs30 = vs30 # update the Vs30
 
-        label = np.ones([self.num_waveforms, 3]) # Label vector
-        label[:, 0] = label[:, 0] * self.mw # Magnitude
-        label[:, 1] = label[:, 1] * self.rhyp # Distance in km
-        label[:, 2] = label[:, 2] * self.vs30/1000 # Vs30 in km/s
-                
-        tf_simulation = self.model.predict([label, self.noise_gen])[:, :, :, 0] # simulate Time-frequency representation
-        self.tf_synth = self.normalization.inverse(tf_simulation) # Descaled Time-frequency representation
+        self.label = np.ones([self.num_waveforms, 3]) # Label vector
+        self.label[:, 0] = self.label[:, 0] * self.mw # Magnitude
+        self.label[:, 1] = self.label[:, 1] * self.rhyp # Distance in km
+        self.label[:, 2] = self.label[:, 2] * self.vs30/1000 # Vs30 in km/s
 
-        if verbose:
-            print(self.__repr__())
-
-        return self.tf_synth
+        return self.__repr__()
     
     def __repr__(self) -> str:
 
@@ -337,15 +334,47 @@ class TFCGAN:
 
         return np.linspace(0, 0.5, gm_synth.shape[-1]//2)/self.stft_operator.dt, fas_synth[:, :gm_synth.shape[-1]//2]
     
+        
+    def get_time_axs(self) -> np.ndarray:
+        """
+        Time vector
+        """
+        if not hasattr(self, "gm_synth"):
+            raise ValueError("Run the get_ground_shaking_synthesis method first")
+        else:
+            return np.arange(0, self.gm_synth.shape[-1]) * self.stft_operator.dt
+
+    @property
+    def delete_attr(self) -> None:
+        """
+        Delete the attributes
+        """
+        for value in ["tf_synth", "gm_synth", "fas_synth", 'label', 'mw', 'rhyp', 'vs30']:
+            if hasattr(self, value):
+                delattr(self, value)
+        
+    @property
+    def get_tf_representation(self) -> np.ndarray:
+        """
+        Return the time-frequency representation
+        """
+
+        self.tf_synth = self.normalization.inverse(self.model.predict([self.label, self.noise_gen])[:, :, :, 0]) # simulate Time-frequency representation and descale it
+        return self.tf_synth
+
     @property
     def get_ground_shaking_synthesis(self) -> tuple:
         """
         Generate the time-history
         """        
-        self.gm_synth = self.phase_retrieval.apply_on_data(self.tf_synth, self.mode) # Reconstruct the time-history
-        tx = np.arange(self.gm_synth.shape[-1]) * self.stft_operator.dt  # Time vector
+        if not hasattr(self, "tf_synth"):
+            _ = self.get_tf_representation
 
-        return  tx, self.gm_synth
+        if  hasattr(self, "gm_synth"):
+            return  self.get_time_axs, self.gm_synth
+        else:
+            self.gm_synth = self.phase_retrieval.apply_on_data(self.tf_synth, self.mode) # reconstruct the ground shaking using PR and genrated TFR
+            return  self.get_time_axs, self.gm_synth
 
     @property
     def filtered_data(self) -> np.ndarray:
@@ -386,6 +415,9 @@ class TFCGAN:
     
     @property
     def get_fas_response(self) -> tuple:
+        if not hasattr(self, "gm_synth"):
+            _, _ = self.get_ground_shaking_synthesis
+
         # Frequency response of the generated time-history
         freq, fas_synth = self.fft(self.gm_synth) 
         return freq, fas_synth
