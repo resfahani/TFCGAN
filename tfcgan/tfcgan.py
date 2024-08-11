@@ -75,17 +75,15 @@ class STFT():
         inverse Short Time Fourier Transform
 
         """
-
+        
         _, rec_signal =  signal.istft(tfr, window = self.window,  nperseg = len(self.window), 
                                       noverlap = self.hoplength, nfft = self.nfft, 
                                       )
         
-
         #self.rec_signal = librosa.istft(tfr, hop_length=self.hoplength, win_length=self.windowlength, length=self.length)
 
         return rec_signal
     
-
     @property
     def window(self) -> np.ndarray:
         """
@@ -93,17 +91,9 @@ class STFT():
         """
         return signal.get_window('hann', self.windowlength)
 
-
-
-
-
-
 # ###############
 # Phase retrieval
 # ###############
-
-
-
 
 def phase_retrieval_gla(
         tfr_m: np.ndarray,
