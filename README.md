@@ -105,7 +105,9 @@ Citation
     https://doi.org/10.1785/0120220068
 
 
-    Esfahani, Reza D. D.; Zaccarelli, Riccardo (2024): TFCGAN package: Conditional Generative Models in Time-Frequency     domain for Ground motion simulation. GFZ Data Services. https://doi.org/10.5880/GFZ.2.6.2024.002
+    Esfahani, Reza D. D.; Zaccarelli, Riccardo (2024): TFCGAN package: Conditional Generative Models in 
+    Time-Frequency domain for Ground motion simulation. GFZ Data Services. 
+    https://doi.org/10.5880/GFZ.2.6.2024.002
 
  
 
