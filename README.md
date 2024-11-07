@@ -93,21 +93,19 @@ Performance
 -----------
 
 
-Citation
-----------
+
+## Citation
 
 </div>
 
-    Esfahani, Reza DD, Fabrice Cotton, Matthias Ohrnberger, and Frank Scherbaum. 
-    "TFCGAN: Nonstationary Ground‐Motion Simulation in the Time–Frequency Domain 
-    Using Conditional Generative Adversarial Network (CGAN) and Phase Retrieval Methods." 
-    *Bulletin of the Seismological Society of America * 113, no. 1 (2023): 453-467. 
-    https://doi.org/10.1785/0120220068
+**Research article:**
 
 
-    Esfahani, Reza D. D.; Zaccarelli, Riccardo (2024): TFCGAN package: Conditional Generative Models in 
-    Time-Frequency domain for Ground motion simulation. GFZ Data Services. 
-    https://doi.org/10.5880/GFZ.2.6.2024.002
+>Esfahani, Reza DD, Fabrice Cotton, Matthias Ohrnberger, and Frank Scherbaum. "TFCGAN: Nonstationary Ground‐Motion Simulation in the Time–Frequency Domain Using Conditional Generative Adversarial Network (CGAN) and Phase Retrieval Methods."  *Bulletin of the Seismological Society of America * 113, no. 1 (2023): 453-467. https://doi.org/10.1785/0120220068
+
+**Software:**
+
+>Esfahani, Reza D. D.; Zaccarelli, Riccardo (2024): TFCGAN package: Conditional Generative Models in Time-Frequency domain for Ground motion simulation. GFZ Data Services. https://doi.org/10.5880/GFZ.2.6.2024.002
 
  
 
