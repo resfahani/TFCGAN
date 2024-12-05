@@ -11,12 +11,13 @@ def test_cli_routine():
     """test the whole command line interface (cli) routine"""
     with tempfile.TemporaryDirectory() as tmpdirname:
         N = 7
+        L = 3952
         file = os.path.abspath(os.path.join(tmpdirname, 'acca'))
         run(['-m', '6', '-d', '50', '-n', str(N), '-v', '700', file])
         file = file + '.npy'
         assert os.path.isfile(file)
         data = np.load(file)
-        assert data.shape == (N, 4000)
+        assert data.shape == (N+1, L)
 
         with patch('builtins.input', return_value='y') as ipt:
             N = 1
@@ -24,7 +25,7 @@ def test_cli_routine():
             ipt.assert_called_once()
             assert os.path.isfile(file)
             data = np.load(file)
-            assert data.shape == (N, 4000)
+            assert data.shape == (N+1, L)
 
             ipt.reset_mock()
             N += 1
@@ -32,7 +33,7 @@ def test_cli_routine():
             ipt.assert_not_called()
             assert os.path.isfile(file)
             data = np.load(file)
-            assert data.shape == (N, 4000)
+            assert data.shape == (N+1, L)
 
         for fmt in ('.txt', '.gz'):
             file += fmt
@@ -40,4 +41,4 @@ def test_cli_routine():
             run(['-m', '6', '-d', '50', '-n', str(N), '-v', '700', file])
             assert os.path.isfile(file)
             data = np.loadtxt(file)
-            assert data.shape == (N, 4000)
+            assert data.shape ==  (N+1, L)

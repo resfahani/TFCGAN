@@ -1,5 +1,5 @@
 """
-This script contains the signal processing functions for the TFCGAN project.
+module containing the signal processing functions for the TFCGAN project.
 
     -> Short Time Fourier Transform
             SHOULD BE UPDATE TO SHORTIMEFFT IN SCIPY
@@ -14,15 +14,16 @@ Author: Reza Esfahani
 
 from scipy import signal
 from scipy.signal import butter, sosfiltfilt
-import typing as T
 import numpy as np
-from tqdm.auto import tqdm
+from typing import Union
+
 
 # ###############
 # Short Time Fourier Transform
 # ###############
 
-class STFT():
+
+class STFT:
     def __init__(self, 
                  sr: float = 100, 
                  window_length: int = 128 + 64, 
@@ -32,14 +33,11 @@ class STFT():
                  ) -> None:
         """
         Short Time Fourier Transform
-            :param data: input signal
-            :param fs: sampling frequency
-            :param window: window length
-            :param noverlap: overlap length
-            :param nfft: number of FFT points
-            :param length: length of the signal
-        """
 
+        :param window_length: window length
+        :param noverlap: overlap length
+        :param length: length of the signal
+        """
         self.sr = sr
         self.window_length = window_length
         self.noverlap = noverlap
@@ -47,27 +45,24 @@ class STFT():
         self.length = length
 
     def stft(self, x_signal: np.ndarray) -> np.ndarray:
-        
         """
         forward Short Time Fourier Transform
-
         """
-        #self.spectrogram = self.stft_detrend(self.data, detrend = 'linear')
-        #self.freq, self.time, self.tfr = self.stft(signal, self.fs, self.window, self.hoplength, self.nfft)
-        freq_ax, time_ax, tfr_complex = signal.stft(x_signal, window = self.window,  nperseg = self.window_length,
-                                                    noverlap = self.noverlap, nfft = self.n_fft, return_onesided = True,)
-        #self.tfr_complex = librosa.stft(x_signal, hop_length=self.hoplength, win_length=self.windowlength, n_fft = self.nfft)[:128,:248]
-
+        freq_ax, time_ax, tfr_complex = signal.stft(x_signal, window=self.window,
+                                                    nperseg = self.window_length,
+                                                    noverlap = self.noverlap,
+                                                    nfft = self.n_fft,
+                                                    return_onesided=True)
         return tfr_complex[:128,:]
 
     def istft(self, tfr: np.ndarray) -> np.ndarray:
-        
         """
         inverse Short Time Fourier Transform
         """
-        _, rec_signal =  signal.istft(tfr, window = self.window,  nperseg = self.window_length, 
-                                      noverlap = self.noverlap, nfft = self.n_fft, )        
-        #self.rec_signal = librosa.istft(tfr, hop_length=self.hoplength, win_length=self.windowlength, length=self.length)
+        _, rec_signal = signal.istft(tfr, window=self.window,
+                                     nperseg = self.window_length,
+                                     noverlap = self.noverlap,
+                                     nfft=self.n_fft)
         return rec_signal
 
     def __update__(self, **kwargs):
@@ -84,31 +79,28 @@ class STFT():
         return signal.get_window('hann', self.window_length)
     
 
-
 # ###############
 # Phase retrieval
 # ###############
 
 class PhaseRetrieval:
     def __init__(self, 
-                 stft_operator: T.Callable = None, 
+                 stft_operator: STFT = None,
                  iteration_pr: int = 10,
                  rho: float = 1e-5, 
                  eps: float = 1e-3, 
                  contrain_mode: str = "type1",
                  ) -> None:
         """
-        Phase retrieval algorithm based on ADMM algorithm for phase retrieval based on Bregman divergences and Griffin-Lim Algorithm
+        Phase retrieval algorithm based on ADMM algorithm for phase retrieval
+        based on Bregman divergences and Griffin-Lim Algorithm
 
-            :param tfr_m: Time-frequency representation
             :param stft_operator: STFT operator
             :param iteration_pr: Number of iteration in phase retrieval
             :param rho: ADMM parameter
             :param eps: ADMM parameter
             :param contrain_mode: Type of contrain mode (type1 or type2)
-
         """
-
         self.stft_operator = stft_operator
         self.iteration_pr = iteration_pr
         self.rho = rho
@@ -120,38 +112,42 @@ class PhaseRetrieval:
         phase retrieval algorithm based on Griffin-Lim Algorithm
             :param tfr_m: Time-frequency representation
         """
-
-        mag = np.abs(tfr_m) #absolute magnitude
-        phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1])) # phase initialization
-
-        recon_signal = self.stft_operator.istft(mag * np.exp(phase * 1j)) # reconstruct the signal
-        recon_signal = filter_data(recon_signal, 0.1, 20, sr=100, filtertype='bp', filter_order=4) # Filtering the signal
+        mag = np.abs(tfr_m) # absolute magnitude
+        # phase initialization:
+        phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
+        # reconstruct the signal:
+        recon_signal = self.stft_operator.istft(mag * np.exp(phase * 1j))
+        recon_signal = filter_data(recon_signal, 0.1, 20, sr=100, filtertype='bp',
+                                   filter_order=4) # Filtering the signal
 
         for i in range(self.iteration_pr): # number of iteration
-            recon_tfr = self.stft_operator.stft(recon_signal) #calculate the tfr
-            #recon_tfr = recon_tfr[:128,:]
-            phase = np.angle(recon_tfr) # get the phase
-            recon_tfr = mag * np.exp(1j * phase) # mix with magnitude
-            recon_signal = self.stft_operator.istft(recon_tfr) # update the reconstructed signal
+            # calculate the tfr:
+            recon_tfr = self.stft_operator.stft(recon_signal)
+            # get the phase:
+            phase = np.angle(recon_tfr)
+            # mix with magnitude:
+            recon_tfr = mag * np.exp(1j * phase)
+            # update the reconstructed signal:
+            recon_signal = self.stft_operator.istft(recon_tfr)
 
         return recon_signal
     
     def phase_retrieval_admm(self, tfr_m: np.ndarray) -> np.ndarray:     
         """
-        phase retrieval algorithm based on ADMM algorithm for phase retrieval based on Bregman divergences
-        # Code modified from https://github.com//phvial/PRBregDiv
+        phase retrieval algorithm based on ADMM algorithm for phase retrieval
+        based on Bregman divergences.
+        Code modified from https://github.com//phvial/PRBregDiv
         """
 
-        mag = np.absolute(tfr_m)     #get absolute magnitude
-        phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))     #initialization
+        mag = np.absolute(tfr_m) # get absolute magnitude
+        phase = np.random.uniform(0, 0.2, (mag.shape[0], mag.shape[1]))  # initialization
 
-        aux_var1 = 0 
-        recon_signal = self.stft_operator.istft(mag * np.exp(1j * phase)) # reconstruct the signal (initial signal)
-        #recon_signal = filter_data(recon_signal, 0.1, 20, sr=100, filtertype='bp', filter_order=4)
+        aux_var1 = 0
+        # reconstruct the signal (initial signal):
+        recon_signal = self.stft_operator.istft(mag * np.exp(1j * phase))
 
         for ii in range(self.iteration_pr):
             recon_tfr = self.stft_operator.stft(recon_signal)
-            #recon_tfr = recon_tfr[:128,:]
             h = recon_tfr + (1/self.rho) * aux_var1
             ph = np.angle(h)
             aux_var_u = self.compute_prox(abs(h), mag)
@@ -161,7 +157,6 @@ class PhaseRetrieval:
             x_hat = self.stft_operator.stft(recon_signal)
             x_hat = x_hat[:128,:]   
             aux_var1 = aux_var1 + self.rho * (x_hat - aux_var_z)
-            #x = my_filter(x, 0.05, 48, 100)
 
         return recon_signal
 
@@ -179,39 +174,36 @@ class PhaseRetrieval:
             delta = np.square(b) + 4 * self.rho
             v = (-b + np.sqrt(delta)) / (2 * self.rho)
         else:
-            raise ValueError('compute_prox `contrain_mode` parameter should be in ("type1", "type2")')
-        
+            raise ValueError('compute_prox `contrain_mode` parameter '
+                             'should be in ("type1", "type2")')
         return v
 
     def apply_on_data(self, data: np.ndarray, mode: str = "ADMM") -> np.ndarray:
-
-        x_rt = [] # Time-history list
-
-        for i in tqdm(range(data.shape[0]), desc="Phase retrieval", leave = True):
-
+        x_rt = []  # Time-history list
+        for i in range(data.shape[0]):
             if mode == "ADMM":
                 x = self.phase_retrieval_admm(tfr_m = data[i])
             elif mode == "GLA":  # "GLA"
                 x = self.phase_retrieval_gla(tfr_m = data[i])
             else:
-                raise ValueError('apply_on_data `mode` parameter should be in ("ADMM", "GLA")')
-            
+                raise ValueError('apply_on_data `mode` parameter '
+                                 'should be in ("ADMM", "GLA")')
             x_rt.append(x)
+        return np.asarray(x_rt)  # return the generated time-history
 
-        return np.asarray(x_rt) # return the generated time-history
-    
+
 # ###############
 # Filter
 # ###############
 
+
 def filter_data(data: np.ndarray, 
-                freqmin: T.Union[float, int, None],
-                freqmax: T.Union[float, int, None],
+                freqmin: Union[float, None],
+                freqmax: Union[float, None],
                 sr: int = 40, 
                 filtertype: str = 'bp',
                 filter_order: int = 10,
                 ) -> np.ndarray:
-    
     """
     # Filter the data using butterworth filter
         :param data: input signal
@@ -223,17 +215,17 @@ def filter_data(data: np.ndarray,
     
     return: Filtered signal
     """
-
     if filtertype == 'bp' and (freqmin is not None or freqmax is not None):
-        sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr, output='sos') # bandpass filter
-
+        # bandpass filter:
+        sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr, output='sos')
     elif filtertype == 'lp' and freqmax is not None:
-        sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos') # lowpass filter
-    
+        # lowpass filter:
+        sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos')
     elif filtertype == 'hp' and freqmin is not None:
-        sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos') # highpass filter
-
+        # highpass filter
+        sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos')
     else: 
-        raise ValueError('filter_data `filtertype` parameter should be in ("bp", "lp", "hp")') # raise error if the filter type is not correct
-    
-    return sosfiltfilt(sos, data, axis=-1) # Apply the filter on the last axis of data (time axis)
+        raise ValueError('filter_data `filtertype` parameter should be in '
+                         '("bp", "lp", "hp")')
+    # Apply the filter on the last axis of data (time axis):
+    return sosfiltfilt(sos, data, axis=-1)

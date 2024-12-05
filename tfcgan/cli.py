@@ -27,13 +27,15 @@ def create_parser():
         'output',  # <- positional argument
         # dest='output',
         type=str,
-        help=f'The output file. The data will be saved as matrix where each '
-             f'row represent a time history (waveform) with its point arranged'
-             f'in columns. The file format can be specified by its extension: '
-             f'.txt and .gx -> save as text (less efficient '
-             f'but can be read outside Python), otherwise save file as '
-             f'.npy (numpy format). Numpy files can be opened in Python via: '
-             f'data=numpy.load(<output>)',
+        help=f'The output file. The data will be saved as matrix where the '
+             f'the first row represents the times (in s) and each subsequent row '
+             f'a synthetic waveform (time history). The file format can be '
+             f'specified by its extension: .gz, .txt and .ascii -> save as text (.gz '
+             f'is compressed and recommended for large datasets. In general, use these '
+             f'formats only if you need to open the files not in a python/numpy '
+             f'environment), .npy and .npz -> save as binary in numpy format (for .npz, '
+             f'the times are saved as "x" and the waveforms as "y"). See numpy save, '
+             f'savez and load for details',
         metavar="output file"
     )
     # add argument to ArgParse:
@@ -90,11 +92,20 @@ def run(arguments=None):
         try:
             if verbose:
                 print('Creating waveforms')
-            tfc = TFCGAN().maker(
+
+            # Model
+            tfcgan = TFCGAN()
+
+            # Generate labels for a specific scenario
+            tfcgan.create_scenario(
                 args.magnitude,
                 args.distance,
                 args.vs30,
                 args.number_of_waveforms)
+
+            # Generate waveform data
+            t, data = tfcgan.get_ground_shaking_synthesis
+
             output_file = args.output
             f_format = os.path.splitext(os.path.basename(output_file))[1].lower()
             if f_format not in ('.npy', '.txt', '.gz'):
@@ -109,19 +120,25 @@ def run(arguments=None):
                     if verbose:
                         print('Aborted by user')
                     sys.exit(0)
-            x_hist = tfc[4]
+
             if verbose:
                 print(f'Saving waveforms to {output_file}')
-            if f_format == '.npy':
-                np.save(file=output_file, arr=x_hist)
+            if f_format == '.npz':
+                np.savez(file=output_file, x=t, y=data)
+            elif f_format in ('.txt', '.ascii', '.npy', '.gz'):
+                saved_data = np.vstack((t, data))
+                if f_format == '.npy':
+                    np.save(file=output_file, arr=saved_data)
+                else:
+                    np.savetxt(fname=output_file, X=saved_data)
             else:
-                np.savetxt(fname=output_file, X=x_hist)
-            # sys.exit(0)
+                raise ValueError(f'Unrecognized file format "{f_format}"')
+            return 0
         except Exception as exc:
             # raise
             print(f'{exc.__class__.__name__}: {str(exc)}', file=sys.stderr)
-            # sys.exit(1)
+            return 1
 
 
 if __name__ == '__main__':
-    run()
+    sys.exit(run())

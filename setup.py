@@ -15,7 +15,7 @@ setup(
         'numpy==1.26.1',
         'tensorflow==2.11.1',
         # 'obspy==1.4.1',
-        # 'librosa>=0.10.2'
+        'scipy==1.14.1'
     ],
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
