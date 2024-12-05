@@ -96,15 +96,11 @@ def run(arguments=None):
             # Model
             tfcgan = TFCGAN()
 
-            # Generate labels for a specific scenario
-            tfcgan.create_scenario(
-                args.magnitude,
-                args.distance,
-                args.vs30,
-                args.number_of_waveforms)
-
             # Generate waveform data
-            t, data = tfcgan.get_ground_shaking_synthesis
+            t, data = tfcgan.get_ground_shaking_synthesis(
+                args.number_of_waveforms, mw=args.magnitude, rhyp=args.distance,
+                vs30=args.vs30
+            )
 
             output_file = args.output
             f_format = os.path.splitext(os.path.basename(output_file))[1].lower()

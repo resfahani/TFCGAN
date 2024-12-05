@@ -57,8 +57,8 @@ num_waveforms = 10
 # Model
 tfcgan = TFCGAN()
 
-# Generate labels for a specific scenario
-tfcgan.create_scenario(mag, dist, vs30, num_waveforms = num_waveforms)
+# Generate waveform data
+t, data = tfcgan.get_ground_shaking_synthesis(num_waveforms, mw=mag, ryhp=dist, vs30=vs30)
 
 # Generate the time-frequency representation
 tf = model.get_tf_representation

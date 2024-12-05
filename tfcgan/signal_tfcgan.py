@@ -53,7 +53,7 @@ class STFT:
                                                     noverlap = self.noverlap,
                                                     nfft = self.n_fft,
                                                     return_onesided=True)
-        return tfr_complex[:128,:]
+        return tfr_complex[:128, :]
 
     def istft(self, tfr: np.ndarray) -> np.ndarray:
         """
@@ -65,7 +65,7 @@ class STFT:
                                      nfft=self.n_fft)
         return rec_signal
 
-    def __update__(self, **kwargs):
+    def __update__(self, **kwargs):  # FIXME what is this?
         for key, value in kwargs.items():
             setattr(self, key, value)
         return self
@@ -200,7 +200,7 @@ class PhaseRetrieval:
 def filter_data(data: np.ndarray, 
                 freqmin: Union[float, None],
                 freqmax: Union[float, None],
-                sr: int = 40, 
+                sr: float = 40,
                 filtertype: str = 'bp',
                 filter_order: int = 10,
                 ) -> np.ndarray:
