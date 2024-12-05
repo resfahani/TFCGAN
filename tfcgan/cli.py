@@ -1,7 +1,4 @@
-"""cli (command line interface) module of the program
-
-@author: Riccardo Z. <rizac@gfz-potsdam.de>
-"""
+"""cli (command line interface) module of the program"""
 import sys
 import os
 import warnings
@@ -9,11 +6,6 @@ import argparse
 from argparse import RawTextHelpFormatter
 
 import numpy as np
-
-
-#####################
-# ArgumentParser code
-#####################
 
 
 def create_parser():
@@ -36,32 +28,36 @@ def create_parser():
              f'environment), .npy and .npz -> save as binary in numpy format (for .npz, '
              f'the times are saved as "x" and the waveforms as "y"). See numpy save, '
              f'savez and load for details',
-        metavar="output file"
+        metavar="output-file"
     )
     # add argument to ArgParse:
     parser.add_argument(
+        "-n",
+        type=int,
+        required=True,
+        dest="number_of_waveforms",
+        help='number of generated synthetic waveforms'
+    )
+    parser.add_argument(
         "-m",
         type=float,
+        required=True,
         dest="magnitude",
         help='The seismic event magnitude'
+    )
+    parser.add_argument(
+        "-d",
+        type=float,
+        required=True,
+        dest="distance",
+        help='The site distance (km)'
     )
     parser.add_argument(
         "-v",
         type=float,
         dest="vs30",
+        default=760,
         help='The site Vs30'
-    )
-    parser.add_argument(
-        "-d",
-        type=float,
-        dest="distance",
-        help='The site distance (km)'
-    )
-    parser.add_argument(
-        "-n",
-        type=int,
-        dest="number_of_waveforms",
-        help='number of generated synthetic waveforms'
     )
     parser.add_argument(
         "-q",
@@ -88,7 +84,7 @@ def run(arguments=None):
         verbose = not args.q
         if verbose:
             print('Loading TFCGAN model and libraries')
-        from tfcgan.tfcgan import TFCGAN
+        from tfcgan import TFCGAN
         try:
             if verbose:
                 print('Creating waveforms')
@@ -101,21 +97,20 @@ def run(arguments=None):
                 args.number_of_waveforms, mw=args.magnitude, rhyp=args.distance,
                 vs30=args.vs30
             )
-
             output_file = args.output
             f_format = os.path.splitext(os.path.basename(output_file))[1].lower()
-            if f_format not in ('.npy', '.txt', '.gz'):
+            if f_format not in ('.npy', '.txt', '.gz', '.npz', '.ascii'):
                 f_format = '.npy'
                 output_file += f_format
             output_dir = os.path.dirname(output_file)
             if not os.path.isdir(output_dir):
-                raise FileNotFoundError(output_dir)
+                os.makedirs(output_dir)
             if verbose and os.path.isfile(output_file):
                 answer = input('output file exists. Overwrite (y=yes)?')
                 if answer != 'y':
                     if verbose:
                         print('Aborted by user')
-                    sys.exit(0)
+                    return 0
 
             if verbose:
                 print(f'Saving waveforms to {output_file}')

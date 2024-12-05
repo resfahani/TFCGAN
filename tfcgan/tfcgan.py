@@ -8,10 +8,12 @@ from keras.models import load_model
 from keras.engine.functional import Functional
 
 from tfcgan.normalization import DataNormalization
-from tfcgan.signal import STFT, PhaseRetrieval
+from tfcgan.signals import STFT, ADMM, GLA
 
 
 class TFCGAN:
+    """TFCGAN class producing synthetic data waveforms"""
+
     def __init__(self,
                  dirc: str = None,
                  scalemin: float = -10,
@@ -20,7 +22,7 @@ class TFCGAN:
                  ) -> None:
         """        
         :param dirc: Trained model directory. None (the default) will load the default
-            model shipped with the package
+            trained model shipped with this package
         :param scalemin: Scale factor in pre-processing step (min. value)
         :param scalemax: Scale factor in pre-processing step (max. value)
         :param pwr: Power spectrum in pre-processing step:
@@ -35,7 +37,7 @@ class TFCGAN:
         self.normalization = DataNormalization(scalemin=scalemin,
                                                scalemax=scalemax,
                                                pwr=pwr)
-        self._model = None  # lazy loaded (see property)
+        self._model = None  # lazy loaded (see clas property)
 
     @property
     def model(self) -> Functional:
@@ -48,6 +50,7 @@ class TFCGAN:
                 num_waveforms: int = 1, noise_dim: int = 100) -> np.ndarray:
         """
         Generate a scenario and return the time-frequency representation
+
             :param mw: Magnitude value
             :param rhyp: Distance value
             :param vs30: Vs30 value
@@ -96,14 +99,16 @@ class TFCGAN:
         :return: a tuple of two elements: the time axis and the synthetic waveforms data
         """
         stft_operator = STFT(sr=1./dt)
-        phase_retrieval = PhaseRetrieval(stft_operator=stft_operator,
-                                         iteration_pr=iter_pr,
-                                         rho=rho,
-                                         eps=eps)
+        if mode == 'ADMM':
+            phase_retrieval = ADMM(stft_operator, iter_pr, rho=rho, eps=eps)
+        elif mode == 'GLA':
+            phase_retrieval = GLA(stft_operator, iter_pr)
+        else:
+            raise ValueError('mode should be in ("ADMM", "GLA")')
         # Generate the ground shaking using phase retrieval algorithm
         tf_synth = self.get_tfr(mw=mw, rhyp=rhyp, vs30=vs30, num_waveforms=n_waveforms)
         # reconstruct the ground shaking using PR and genrated TFR:
-        gm_synth = phase_retrieval.apply_on_data(tf_synth, mode)
+        gm_synth = phase_retrieval.apply_on_data(tf_synth)
         time_axs = np.arange(0, gm_synth.shape[-1]) * dt
         return time_axs, gm_synth
 

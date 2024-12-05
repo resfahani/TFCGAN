@@ -1,12 +1,12 @@
 # TFCGAN
 
 
-`TFCGAN` is a python package for strong ground motion simulation in time-frequency domain (TF) based on based on conditional generative adversarial network and phase retrieval approaches. 
-
+`TFCGAN` is a Python program and library for strong ground motion simulation 
+in time-frequency domain (TF) based on conditional generative adversarial 
+network and phase retrieval approaches.
 
 Used as command line application, TFCGAN can be used to create .npy files
 of synthetic seismic waveforms using a pre-trained ANN model.
-
 
 ## Install
 
@@ -36,7 +36,7 @@ type `tfcgan --help` in your terminal
 TFCGAN can also be used in your Python code:
 
 ```python
-from tfcgan.tfcgan import TFCGAN
+from tfcgan import TFCGAN
 # setup your parameters. Example:
 
 mag = 7
@@ -58,7 +58,7 @@ freq, fas = TFCGAN.get_fas_response(t[1] - t[0], data)
 ```
 
 
-### TODO list:
+## TODO list:
 - Go through all FIXMEs
 - Add waveform length parameter
 - create model with tensorflow 12.16 or whatever,
@@ -81,8 +81,6 @@ Performance
 
 
 ## Citation
-
-</div>
 
 **Research article:**
 

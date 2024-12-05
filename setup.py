@@ -1,11 +1,14 @@
 from setuptools import setup, find_packages
 
 _README = """
-"""  # TODO add readme
+Python program and library for strong ground motion simulation in time-frequency 
+domain (TF) based on conditional generative adversarial network and phase 
+retrieval approaches
+"""
 
 setup(
     name='tfcgan',
-    version='1.1.0',
+    version='1.0.0',
     description=_README,
     url='https://github.com/resfahani/TFCGAN',
     packages=find_packages(exclude=['tests', 'tests.*']),
@@ -29,9 +32,9 @@ setup(
             'pytest'
         ]
     },
-    author='Reza D. D. Esfahani',
-    author_email='',  # FIXME: what to provide?
-    maintainer='Reza D. D. Esfahani',
+    author='Reza D. D. Esfahani, Riccardo Zaccarelli',
+    author_email='',
+    maintainer='Reza D. D. Esfahani, , Riccardo Zaccarelli',
     maintainer_email='',
     classifiers=[
         'Development Status :: 1 - Beta',
@@ -48,7 +51,7 @@ setup(
     ],
     license="GPL3",
     platforms=["any"],  # FIXME: shouldn't be unix/macos? (shallow google search didn't help)
-    # package_data={"smtk": [
+    # package_data={"key": [
     #    "README.md", "LICENSE"]},
 
     # make the installation process copy also the models (see MANIFEST.in)

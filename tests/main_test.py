@@ -14,6 +14,7 @@ def test_cli_routine():
         N = 7
         L = 3952
         file = os.path.abspath(os.path.join(tmpdirname, 'acca'))
+        # try with args:
         run(['-m', '6', '-d', '50', '-n', str(N), '-v', '700', file])
         file = file + '.npy'
         assert os.path.isfile(file)
