@@ -11,19 +11,14 @@ module containing the signal processing functions for the TFCGAN project.
 Author: Reza Esfahani
 
 """
-
-from scipy import signal
-from scipy.signal import butter, sosfiltfilt
+from scipy.signal import butter, sosfiltfilt, stft, istft, get_window
 import numpy as np
 from typing import Union
 
 
-# ###############
-# Short Time Fourier Transform
-# ###############
-
-
 class STFT:
+    """Short Time Fourier Transform class"""
+
     def __init__(self,
                  sr: float = 100,
                  window_length: int = 128 + 64,
@@ -48,23 +43,19 @@ class STFT:
         """
         forward Short Time Fourier Transform
         """
-        freq_ax, time_ax, tfr_complex = signal.stft(x_signal,
-                                                    window=self.window,
-                                                    nperseg=self.window_length,
-                                                    noverlap=self.noverlap,
-                                                    nfft=self.n_fft,
-                                                    return_onesided=True)
+        freq_ax, time_ax, tfr_complex = stft(x_signal, window=self.window,
+                                             nperseg=self.window_length,
+                                             noverlap=self.noverlap,
+                                             nfft=self.n_fft,
+                                             return_onesided=True)
         return tfr_complex[:128, :]  # FIXME: should it be [:self.n_fft//2, :] instead?
 
     def istft(self, tfr: np.ndarray) -> np.ndarray:
         """
         inverse Short Time Fourier Transform
         """
-        _, rec_signal = signal.istft(tfr,
-                                     window=self.window,
-                                     nperseg=self.window_length,
-                                     noverlap=self.noverlap,
-                                     nfft=self.n_fft)
+        _, rec_signal = istft(tfr, window=self.window, nperseg=self.window_length,
+                              noverlap=self.noverlap, nfft=self.n_fft)
         return rec_signal
 
     @property
@@ -73,14 +64,12 @@ class STFT:
 
     @property
     def window(self) -> np.ndarray:
-        return signal.get_window('hann', self.window_length)
+        return get_window('hann', self.window_length)
 
-
-# ###############
-# Phase retrieval
-# ###############
 
 class PhaseRetrieval:
+    """Phase Retrieval class"""
+
     def __init__(self,
                  stft_operator: STFT = None,
                  iteration_pr: int = 10,
@@ -188,11 +177,6 @@ class PhaseRetrieval:
                                  'should be in ("ADMM", "GLA")')
             x_rt.append(x)
         return np.asarray(x_rt)  # return the generated time-history
-
-
-# ###############
-# Filter
-# ###############
 
 
 def filter_data(data: np.ndarray,

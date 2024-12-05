@@ -9,7 +9,7 @@ setup(
     description=_README,
     url='https://github.com/resfahani/TFCGAN',
     packages=find_packages(exclude=['tests', 'tests.*']),
-    python_requires='>=3.10.0',
+    python_requires='==3.10.0',
     # Minimal requirements, for a complete list see requirements-*.txt
     install_requires=[
         'numpy==1.26.1',

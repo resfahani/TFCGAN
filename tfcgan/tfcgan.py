@@ -2,19 +2,14 @@
 core module
 """
 import os
-
-import keras
 import numpy as np
+
+from keras.models import load_model
 from keras.engine.functional import Functional
 
-from tfcgan import signal_tfcgan as signal_
 from tfcgan.normalization import DataNormalization
-from tfcgan.signal_tfcgan import STFT
+from tfcgan.signal import STFT, PhaseRetrieval
 
-
-# ###############
-# TFCGAN
-# ###############
 
 class TFCGAN:
     def __init__(self,
@@ -23,9 +18,9 @@ class TFCGAN:
                  scalemax: float = 2.638887,
                  pwr: float = 1
                  ) -> None:
-        
         """        
-        :param dirc: Trained model directory
+        :param dirc: Trained model directory. None (the default) will load the default
+            model shipped with the package
         :param scalemin: Scale factor in pre-processing step (min. value)
         :param scalemax: Scale factor in pre-processing step (max. value)
         :param pwr: Power spectrum in pre-processing step:
@@ -46,7 +41,7 @@ class TFCGAN:
     def model(self) -> Functional:
         if self._model is None:
             # Load the trained model
-            self._model = keras.models.load_model(self.dirc)
+            self._model = load_model(self.dirc)
         return self._model
 
     def get_tfr(self, mw: float = 7, rhyp: float = 10, vs30: float = 760,
@@ -101,10 +96,10 @@ class TFCGAN:
         :return: a tuple of two elements: the time axis and the synthetic waveforms data
         """
         stft_operator = STFT(sr=1./dt)
-        phase_retrieval = signal_.PhaseRetrieval(stft_operator=stft_operator,
-                                                 iteration_pr=iter_pr,
-                                                 rho=rho,
-                                                 eps=eps)
+        phase_retrieval = PhaseRetrieval(stft_operator=stft_operator,
+                                         iteration_pr=iter_pr,
+                                         rho=rho,
+                                         eps=eps)
         # Generate the ground shaking using phase retrieval algorithm
         tf_synth = self.get_tfr(mw=mw, rhyp=rhyp, vs30=vs30, num_waveforms=n_waveforms)
         # reconstruct the ground shaking using PR and genrated TFR:
@@ -119,5 +114,3 @@ class TFCGAN:
         fas_synth = np.abs(np.fft.fft(gm_synth, norm="forward", axis=-1))
         n_pts = gm_synth.shape[-1] // 2
         return np.linspace(0, 0.5, num=n_pts) / dt, fas_synth[:, :n_pts]
-
-
