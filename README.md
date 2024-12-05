@@ -57,29 +57,6 @@ t, data = tfcgan.get_ground_shaking_synthesis(num_waveforms, mw=mag, ryhp=dist, 
 freq, fas = TFCGAN.get_fas_response(t[1] - t[0], data)
 ```
 
-
-## TODO list:
-- Go through all FIXMEs
-- Add waveform length parameter
-- create model with tensorflow 12.16 or whatever,
-- create models in hdf format (see tensorflow doc)
-- check the running code by running the tests
-
-<!-- 
-## Model
-
-## Data 
-
-update require
-
-
-
-Performance
------------
-
--->
-
-
 ## Citation
 
 **Research article:**
