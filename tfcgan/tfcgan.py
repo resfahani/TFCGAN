@@ -112,84 +112,12 @@ class TFCGAN:
         time_axs = np.arange(0, gm_synth.shape[-1]) * dt
         return time_axs, gm_synth
 
-    #FIXME: unnecessary code:
-    # @property
-    # def normalization(self) -> DataNormalization:
-    #     # return the normalization function
-    #     return DataNormalization(scalemin = self.scalemin, scalemax = self.scalemax, pwr = self.pwr)
-    # @property
-    # def stft_operator(self) -> signal_.STFT():
-    #     return signal_.STFT()
-    # def __repr__(self) -> str:
-    #     return (
-    #         f"Mw: {self.mw}, "
-    #         f"Rhyp: {self.rhyp} km, "
-    #         f"Vs30: {self.vs30} m/s, "
-    #         f"n_wave: {self.num_waveforms}, "
-    #         f"PR mode: {self.mode}, "
-    #         f"PR iter: {self.iter_pr}."
-    #         )
-    # @property
-    # def delete_attr(self) -> None:
-    #     # Delete the attributes for new scenario
-    #     for value in ["tf_synth", "gm_synth", "fas_synth", 'label', 'mw', 'rhyp',
-    #                   'vs30']:
-    #         if hasattr(self, value):
-    #             delattr(self, value)
-    # @property
-    # def phase_retrieval(self) -> signal_.PhaseRetrieval:
-    #     return signal_.PhaseRetrieval(stft_operator=self.stft_operator,
-    #                                   iteration_pr=self.iter_pr, rho=self.rho,
-    #                                   eps=self.eps)
-    # @property
-    # def get_tfr(self) -> np.ndarray:
-    #     # return the time-frequency representation
-    #     return self.tf_synth
-    # @property
-    # def noise_gen(self) -> np.ndarray:
-    #     # Generate random noise vector
-    #     return np.random.normal(0, 1, (self.num_waveforms, self.noise_dim))
-    # @property
-    # def get_time_axs(self) -> np.ndarray:
-    #     # get time axis
-    #     if not hasattr(self, "gm_synth"):
-    #         raise ValueError("Run the get_ground_shaking_synthesis method first")
-    #     else:
-    #         return np.arange(0, self.gm_synth.shape[-1]) * self.stft_operator.dt
-    # @property
-    # def get_tf_representation(self) -> np.ndarray:
-    #     # Return the time-frequency representation
-    #     if  hasattr(self, "tf_synth"):
-    #         return self.tf_synth
-    #     else:
-    #         raise ValueError("Run the create_scenario method first")
-
-
-
-    # unused code (please add tests when restoring it)
-
-    @property
-    def get_fas_response(self) -> tuple:
-        if not hasattr(self, "gm_synth"):
-            _, _ = self.get_ground_shaking_synthesis
-        # Frequency response of the generated time-history
-        self.freq, self.fas_synth = self.fft(self.gm_synth)
-        return self.freq, self.fas_synth
-
-    def fft(self, gm_synth: np.ndarray) -> tuple:
+    @staticmethod
+    def get_fas_response(dt: float, gm_synth: np.ndarray) -> tuple:
+        """Return the Frequency response of the generated time-history"""
         # non-normalized fft without any norm specification
-
-        if len(gm_synth.shape) == 1:
-            gm_synth = gm_synth[np.newaxis, :]
         fas_synth = np.abs(np.fft.fft(gm_synth, norm="forward", axis=-1))
+        n_pts = gm_synth.shape[-1] // 2
+        return np.linspace(0, 0.5, num=n_pts) / dt, fas_synth[:, :n_pts]
 
-        return (np.linspace(0, 0.5, gm_synth.shape[-1]//2) /
-                self.stft_operator.dt, fas_synth[:, :gm_synth.shape[-1]//2])
-
-    # @property
-    # def filtered_data(self) -> np.ndarray:
-    #     # Filter the generated time-history
-    #     return signal_.filter_data(self.gm_synth, 0.1, 20, sr=self.stft_operator.sr,
-    #                                filtertype='bp', filter_order=4)
-    #
 

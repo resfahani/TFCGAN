@@ -5,6 +5,7 @@ from unittest.mock import patch
 import numpy as np
 
 from tfcgan.cli import run
+from tfcgan.tfcgan import TFCGAN
 
 
 def test_cli_routine():
@@ -41,4 +42,9 @@ def test_cli_routine():
             run(['-m', '6', '-d', '50', '-n', str(N), '-v', '700', file])
             assert os.path.isfile(file)
             data = np.loadtxt(file)
-            assert data.shape ==  (N+1, L)
+            assert data.shape == (N+1, L)
+
+        time, data = data[0], data[1:]
+        freq, fas = TFCGAN.get_fas_response(time[1] - time[0], data)
+        assert len(freq) == len(time) // 2
+        assert fas.shape == (data.shape[0], len(freq))
