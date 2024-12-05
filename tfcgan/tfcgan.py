@@ -2,7 +2,6 @@
 core module
 """
 import os
-from typing import Callable
 
 import keras
 import numpy as np
@@ -45,7 +44,7 @@ class TFCGAN:
         self.pwr = pwr  # Power or absolute
         self.scalemin = scalemin   # Scaling (clipping the dynamic range)
         self.scalemax = scalemax   # Maximum value
-        self. noise_dim = noise_dim  # later space
+        self.noise_dim = noise_dim  # later space
 
         self.num_waveforms = 2
     
@@ -199,23 +198,3 @@ class TFCGAN:
         # Frequency response of the generated time-history
         self.freq, self.fas_synth = self.fft(self.gm_synth) 
         return self.freq, self.fas_synth
-
-    # def save_ground_shaking(self, dirc: str = None) -> None:
-    #     # Save the generated ground shaking
-    #     if dirc is None:
-    #         dirc = os.path.abspath(os.path.join(
-    #             os.path.dirname(os.path.dirname(__file__)), 'results'))
-    #
-    #     os.makedirs(dirc, exist_ok=True)
-    #     dirc = os.path.join(dirc, f"mw_{self.mw}_rhyp_{self.rhyp}_vs30_{self.vs30}.npz")
-    #
-    #     if (hasattr(self, "gm_synth") and hasattr(self, "gm_synth")
-    #             and hasattr(self, "tf_synth") and hasattr(self, "fas_synth")):
-    #         np.savez(dirc, label=self.label, GM_synthesis=self.gm_synth,
-    #                  fas_synthesis=self.fas_synth, tf_synthesis=self.tf_synth,
-    #                  freq=self.freq)
-    #         print(f"Ground shaking scenario with mw:{self.mw}, "
-    #               f"Rhyp:{self.rhyp}, vs30:{self.vs30} is saved in {dirc}")
-    #     else:
-    #         raise ValueError("Run the get_ground_shaking_synthesis "
-    #                          "and get_fas_response first")
