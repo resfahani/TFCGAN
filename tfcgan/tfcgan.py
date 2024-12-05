@@ -4,8 +4,8 @@ core module
 import os
 import numpy as np
 
-from keras.models import load_model
-from keras.engine.functional import Functional
+from keras.models import load_model  # noqa
+from keras.engine.functional import Functional  # noqa
 
 from tfcgan.normalization import DataNormalization
 from tfcgan.signals import STFT, ADMM, GLA
@@ -71,7 +71,6 @@ class TFCGAN:
 
     def get_ground_shaking_synthesis(self,
                                      n_waveforms: int, *,
-                                     dt: float = 0.01,
                                      mw: float = 7,
                                      rhyp: float = 10,
                                      vs30: float = 760,
@@ -84,12 +83,11 @@ class TFCGAN:
         Generate synthetic waveforms (time histories) from the given scenario
 
         :param n_waveforms: Number of generated time-histories
-        :param dt: waveforms time step
         :param mw: Magnitude value
         :param rhyp: Distance value
         :param vs30: Vs30 value
         :param mode: Type of Phase retrieval algorithm
-            "ADMM" (the default): ADMM algorithm for  based on Bergman divergance
+            "ADMM" (the default): ADMM algorithm for  based on Bergman divergence
             (https://hal.archives-ouvertes.fr/hal-03050635/document)
             "GLA": Griffin-Lim Algorithm
         :param iter_pr: Number of iteration in Phase retrieval
@@ -98,7 +96,7 @@ class TFCGAN:
 
         :return: a tuple of two elements: the time axis and the synthetic waveforms data
         """
-        stft_operator = STFT(sr=1./dt)
+        stft_operator = STFT()
         if mode == 'ADMM':
             phase_retrieval = ADMM(stft_operator, iter_pr, rho=rho, eps=eps)
         elif mode == 'GLA':
@@ -107,14 +105,21 @@ class TFCGAN:
             raise ValueError('mode should be in ("ADMM", "GLA")')
         # Generate the ground shaking using phase retrieval algorithm
         tf_synth = self.get_tfr(mw=mw, rhyp=rhyp, vs30=vs30, num_waveforms=n_waveforms)
-        # reconstruct the ground shaking using PR and genrated TFR:
+        # reconstruct the ground shaking using PR and generated TFR:
         gm_synth = phase_retrieval.apply_on_data(tf_synth)
-        time_axs = np.arange(0, gm_synth.shape[-1]) * dt
+        time_axs = np.arange(0, gm_synth.shape[-1]) * stft_operator.dt
         return time_axs, gm_synth
 
     @staticmethod
     def get_fas_response(dt: float, gm_synth: np.ndarray) -> tuple:
-        """Return the Frequency response of the generated time-history"""
+        """Return the Frequency response of the time-histories generated
+        with `self.get_ground_shaking_synthesis`
+
+        :param dt: the delta t, in s. Called t the first argument of
+            `self.get_ground_shaking_synthesis`, then `dt = t[1] - t[0]`
+        :param gm_synth: the synthetic waveforms (second argument of
+            `self.get_ground_shaking_synthesis`)
+        """
         # non-normalized fft without any norm specification
         fas_synth = np.abs(np.fft.fft(gm_synth, norm="forward", axis=-1))
         n_pts = gm_synth.shape[-1] // 2

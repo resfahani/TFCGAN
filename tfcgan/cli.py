@@ -11,20 +11,18 @@ import numpy as np
 def create_parser():
     parser = argparse.ArgumentParser(
         description="TFCGAN is a generator of synthetic seismic waveforms using "
-                    "a pre-trained ANN model",
-        formatter_class=RawTextHelpFormatter
+                    "a pre-trained ANN model"
     )
     # positional arguments:
     parser.add_argument(
         'output',  # <- positional argument
-        # dest='output',
         type=str,
         help=f'The output file. The data will be saved as matrix where the '
              f'the first row represents the times (in s) and each subsequent row '
              f'a synthetic waveform (time history). The file format can be '
              f'specified by its extension: .gz, .txt and .ascii -> save as text (.gz '
              f'is compressed and recommended for large datasets. In general, use these '
-             f'formats only if you need to open the files not in a python/numpy '
+             f'formats only if you need to open the files outside a python/numpy '
              f'environment), .npy and .npz -> save as binary in numpy format (for .npz, '
              f'the times are saved as "x" and the waveforms as "y"). See numpy save, '
              f'savez and load for details',
@@ -35,7 +33,7 @@ def create_parser():
         "-n",
         type=int,
         required=True,
-        dest="number_of_waveforms",
+        dest="num_waveforms",
         help='number of generated synthetic waveforms'
     )
     parser.add_argument(
@@ -57,7 +55,7 @@ def create_parser():
         type=float,
         dest="vs30",
         default=760,
-        help='The site Vs30'
+        help='The site Vs30 (default when missing: 760)'
     )
     parser.add_argument(
         "-q",
@@ -94,7 +92,7 @@ def run(arguments=None):
 
             # Generate waveform data
             t, data = tfcgan.get_ground_shaking_synthesis(
-                args.number_of_waveforms, mw=args.magnitude, rhyp=args.distance,
+                args.num_waveforms, mw=args.magnitude, rhyp=args.distance,
                 vs30=args.vs30
             )
             output_file = args.output
@@ -126,7 +124,6 @@ def run(arguments=None):
                 raise ValueError(f'Unrecognized file format "{f_format}"')
             return 0
         except Exception as exc:
-            # raise
             print(f'{exc.__class__.__name__}: {str(exc)}', file=sys.stderr)
             return 1
 

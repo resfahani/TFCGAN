@@ -1,11 +1,11 @@
 """
 module containing the signal processing functions for the TFCGAN project.
-    -> Short Time Fourier Transform:
-            SHOULD BE UPDATED TO SHORT TIME FFT IN SCIPY
-    -> Phase retrieval:
-        Phase retrieval algorithm based on ADMM algorithm and 
-        Griffin-Lim Algorithm
-    -> Filtering
+- Short Time Fourier Transform:
+        SHOULD BE UPDATED TO SHORT TIME FFT IN SCIPY
+- Phase retrieval:
+  - Phase retrieval algorithm based on ADMM algorithm and
+  - Griffin-Lim Algorithm
+- Filtering
 """
 from scipy.signal import butter, sosfiltfilt, stft, istft, get_window
 import numpy as np
@@ -16,11 +16,12 @@ class STFT:
     """Short Time Fourier Transform class"""
 
     def __init__(self,
+                 # FIXME: used only to return self.dt = 1/sf. What's the purpose then?
                  sr: float = 100,
                  window_length: int = 128 + 64,
                  noverlap: int = 128 + 64 - 16,
                  n_fft: int = 256,
-                 length: int = 4000,  # FIXME: not used
+                 length: int = 4000,  # FIXME: unused
                  ) -> None:
         """
         Short Time Fourier Transform
@@ -107,9 +108,8 @@ class GLA(PhaseRetrieval):
         phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
         # reconstruct the signal:
         recon_signal = self.stft_operator.istft(mag * np.exp(phase * 1j))
-        recon_signal = GLA.filter_data(recon_signal,
-                                       0.1, 20, sr=100, filtertype='bp',
-                                       filter_order=4)
+        recon_signal = filter_data(recon_signal, 0.1, 20,
+                                   sr=100, filtertype='bp', filter_order=4)
         for i in range(self.iteration_pr):
             # calculate the tfr:
             recon_tfr = self.stft_operator.stft(recon_signal)
@@ -122,41 +122,41 @@ class GLA(PhaseRetrieval):
 
         return recon_signal
 
-    @staticmethod
-    def filter_data(data: np.ndarray,
-                    freqmin: Union[float, None],
-                    freqmax: Union[float, None],
-                    sr: float = 40,
-                    filtertype: str = 'bp',
-                    filter_order: int = 10,
-                    ) -> np.ndarray:
-        """
-        Filter the data using butterworth filter
 
-        :param data: input signal
-        :param freqmin: Minimum frequency
-        :param freqmax: Maximum frequency
-        :param sr: Sampling rate
-        :param filtertype: Type of filter (bp, lp, hp)
-        :param filter_order: Order of the filter
+def filter_data(data: np.ndarray,
+                freqmin: Union[float, None],
+                freqmax: Union[float, None],
+                sr: float = 40,
+                filtertype: str = 'bp',
+                filter_order: int = 10,
+                ) -> np.ndarray:
+    """
+    Filter the data using butterworth filter
 
-        return: Filtered signal
-        """
-        if filtertype == 'bp' and (freqmin is not None or freqmax is not None):
-            # bandpass filter:
-            sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr,
-                         output='sos')
-        elif filtertype == 'lp' and freqmax is not None:
-            # lowpass filter:
-            sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos')
-        elif filtertype == 'hp' and freqmin is not None:
-            # highpass filter
-            sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos')
-        else:
-            raise ValueError('filter_data `filtertype` parameter should be in '
-                             '("bp", "lp", "hp")')
-        # Apply the filter on the last axis of data (time axis):
-        return sosfiltfilt(sos, data, axis=-1)
+    :param data: input signal
+    :param freqmin: Minimum frequency
+    :param freqmax: Maximum frequency
+    :param sr: Sampling rate
+    :param filtertype: Type of filter (bp, lp, hp)
+    :param filter_order: Order of the filter
+
+    return: Filtered signal
+    """
+    if filtertype == 'bp' and (freqmin is not None or freqmax is not None):
+        # bandpass filter:
+        sos = butter(filter_order, [freqmin, freqmax], 'bandpass', fs=sr,
+                     output='sos')
+    elif filtertype == 'lp' and freqmax is not None:
+        # lowpass filter:
+        sos = butter(filter_order, freqmax, 'lp', fs=sr, output='sos')
+    elif filtertype == 'hp' and freqmin is not None:
+        # highpass filter
+        sos = butter(filter_order, freqmin, 'hp', fs=sr, output='sos')
+    else:
+        raise ValueError('filter_data `filtertype` parameter should be in '
+                         '("bp", "lp", "hp")')
+    # Apply the filter on the last axis of data (time axis):
+    return sosfiltfilt(sos, data, axis=-1)
 
 
 class ADMM(PhaseRetrieval):
@@ -215,7 +215,6 @@ class ADMM(PhaseRetrieval):
         """
         Compute the proximal operator of the l1 norm
         """
-
         eps = np.min(r) + self.eps
         if self.contrain_mode == "type1":
             v = (self.rho * y + 2 * r) / (self.rho + 2)
