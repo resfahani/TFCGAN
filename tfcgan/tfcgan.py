@@ -51,7 +51,6 @@ class TFCGAN:
 
     def get_tfr(self, mw: float = 7, rhyp: float = 10, vs30: float = 760,
                 num_waveforms: int = 1, noise_dim: int = 100) -> np.ndarray:
-        
         """
         Generate a scenario and return the time-frequency representation
             :param mw: Magnitude value
@@ -75,7 +74,6 @@ class TFCGAN:
     def get_ground_shaking_synthesis(self,
                                      n_waveforms: int, *,
                                      dt: float = 0.01,
-                                     n_pts: int = 4000,
                                      mw: float = 7,
                                      rhyp: float = 10,
                                      vs30: float = 760,
@@ -89,8 +87,6 @@ class TFCGAN:
 
         :param n_waveforms: Number of generated time-histories
         :param dt: waveforms time step
-        :param n_pts: waveforms number of points (starting from 0 and equally spaced by
-            `dt` sec.)
         :param mw: Magnitude value
         :param rhyp: Distance value
         :param vs30: Vs30 value
@@ -104,7 +100,7 @@ class TFCGAN:
 
         :return: a tuple of two elements: the time axis and the synthetic waveforms data
         """
-        stft_operator = STFT(sr=1./dt, length=n_pts)
+        stft_operator = STFT(sr=1./dt)
         phase_retrieval = signal_.PhaseRetrieval(stft_operator=stft_operator,
                                                  iteration_pr=iter_pr,
                                                  rho=rho,
@@ -172,24 +168,24 @@ class TFCGAN:
 
     # unused code (please add tests when restoring it)
 
-    # @property
-    # def get_fas_response(self) -> tuple:
-    #     if not hasattr(self, "gm_synth"):
-    #         _, _ = self.get_ground_shaking_synthesis
-    #     # Frequency response of the generated time-history
-    #     self.freq, self.fas_synth = self.fft(self.gm_synth)
-    #     return self.freq, self.fas_synth
-    #
-    # def fft(self, gm_synth: np.ndarray) -> tuple:
-    #     # non-normalized fft without any norm specification
-    #
-    #     if len(gm_synth.shape) == 1:
-    #         gm_synth = gm_synth[np.newaxis, :]
-    #     fas_synth = np.abs(np.fft.fft(gm_synth, norm="forward", axis=-1))
-    #
-    #     return (np.linspace(0, 0.5, gm_synth.shape[-1]//2) /
-    #             self.stft_operator.dt, fas_synth[:, :gm_synth.shape[-1]//2])
-    #
+    @property
+    def get_fas_response(self) -> tuple:
+        if not hasattr(self, "gm_synth"):
+            _, _ = self.get_ground_shaking_synthesis
+        # Frequency response of the generated time-history
+        self.freq, self.fas_synth = self.fft(self.gm_synth)
+        return self.freq, self.fas_synth
+
+    def fft(self, gm_synth: np.ndarray) -> tuple:
+        # non-normalized fft without any norm specification
+
+        if len(gm_synth.shape) == 1:
+            gm_synth = gm_synth[np.newaxis, :]
+        fas_synth = np.abs(np.fft.fft(gm_synth, norm="forward", axis=-1))
+
+        return (np.linspace(0, 0.5, gm_synth.shape[-1]//2) /
+                self.stft_operator.dt, fas_synth[:, :gm_synth.shape[-1]//2])
+
     # @property
     # def filtered_data(self) -> np.ndarray:
     #     # Filter the generated time-history
