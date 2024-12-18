@@ -47,8 +47,7 @@ num_waveforms = 10
 # Generate waveform data
 t, data = get_ground_shaking_synthesis(num_waveforms, mw=mag, ryhp=dist, vs30=vs30)
 
-# t is a numpy array of length L ~= 4000
-# the dt (default 0.01) can be set as parameter in get_ground_shaking_synthesis
+# t is a numpy array of length L ~= 4000 with a dt of 0.01 seconds
 # data is a Numpy Matrix of shape (num_waveforms, L).
 
 # Generate Fourier amplitude spectra
