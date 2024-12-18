@@ -1,7 +1,5 @@
 """
 module containing the signal processing functions for the TFCGAN project.
-- Short Time Fourier Transform:
-        SHOULD BE UPDATED TO SHORT TIME FFT IN SCIPY
 - Phase retrieval:
   - Phase retrieval algorithm based on ADMM algorithm and
   - Griffin-Lim Algorithm
@@ -12,63 +10,16 @@ import numpy as np
 from typing import Union
 
 
-class STFT:
-    """Short Time Fourier Transform class"""
-
-    def __init__(self,
-                 window_length: int = 128 + 64,
-                 noverlap: int = 128 + 64 - 16,
-                 n_fft: int = 256,
-                 length: int = 4000,  # FIXME: unused
-                 ) -> None:
-        """
-        Short Time Fourier Transform
-
-        :param window_length: window length
-        :param noverlap: overlap length
-        :param length:  of the signal
-        """
-        self.window_length = window_length
-        self.noverlap = noverlap
-        self.n_fft = n_fft
-        self.length = length
-
-    def stft(self, x_signal: np.ndarray) -> np.ndarray:
-        """
-        forward Short Time Fourier Transform
-        """
-        freq_ax, time_ax, tfr_complex = stft(x_signal, window=self.window,
-                                             nperseg=self.window_length,
-                                             noverlap=self.noverlap,
-                                             nfft=self.n_fft,
-                                             return_onesided=True)
-        return tfr_complex[:128, :]  # FIXME: should it be [:self.n_fft//2, :] instead?
-
-    def istft(self, tfr: np.ndarray) -> np.ndarray:
-        """
-        inverse Short Time Fourier Transform
-        """
-        _, rec_signal = istft(tfr, window=self.window, nperseg=self.window_length,
-                              noverlap=self.noverlap, nfft=self.n_fft)
-        return rec_signal
-
-    @property
-    def window(self) -> np.ndarray:
-        return get_window('hann', self.window_length)
-
-
 class PhaseRetrieval:
     """Phase Retrieval abstract base class"""
 
-    def __init__(self, stft_operator: STFT, iteration_pr: int = 10):
+    def __init__(self, iteration_pr: int = 10):
         """
         Phase retrieval algorithm based on ADMM algorithm for phase retrieval
         based on Bregman divergences and Griffin-Lim Algorithm
 
-            :param stft_operator: STFT operator
-            :param iteration_pr: Number of iteration in phase retrieval
+        :param iteration_pr: Number of iteration in phase retrieval
         """
-        self.stft_operator = stft_operator
         self.iteration_pr = iteration_pr
 
     def apply_on_data(self, data: np.ndarray) -> np.ndarray:
@@ -86,6 +37,35 @@ class PhaseRetrieval:
         """
         raise NotImplementedError('')
 
+    def stft(self, x_signal: np.ndarray) -> np.ndarray:
+        """
+        forward Short Time Fourier Transform
+        """
+        window_length = 128 + 64
+        noverlap = 128 + 64 - 16
+        nfft = 256
+        freq_ax, time_ax, tfr_complex = stft(x_signal,
+                                             window=get_window('hann', window_length),
+                                             nperseg=window_length,
+                                             noverlap=noverlap,
+                                             nfft=nfft,
+                                             return_onesided=True)
+        return tfr_complex[:128, :]
+
+    def istft(self, tfr: np.ndarray) -> np.ndarray:
+        """
+        inverse Short Time Fourier Transform
+        """
+        window_length = 128 + 64
+        noverlap = 128 + 64 - 16
+        nfft = 256
+        _, rec_signal = istft(tfr,
+                              window=get_window('hann', window_length),
+                              nperseg=window_length,
+                              noverlap=noverlap,
+                              nfft=nfft)
+        return rec_signal
+
 
 class GLA(PhaseRetrieval):
     """Phase Retrieval based on Bregman divergences and Griffin-Lim Algorithm"""
@@ -100,18 +80,18 @@ class GLA(PhaseRetrieval):
         # phase initialization:
         phase = np.random.uniform(0, 2 * np.pi, (mag.shape[0], mag.shape[1]))
         # reconstruct the signal:
-        recon_signal = self.stft_operator.istft(mag * np.exp(phase * 1j))
+        recon_signal = self.istft(mag * np.exp(phase * 1j))
         recon_signal = filter_data(recon_signal, 0.1, 20,
                                    sr=100, filtertype='bp', filter_order=4)
         for i in range(self.iteration_pr):
             # calculate the tfr:
-            recon_tfr = self.stft_operator.stft(recon_signal)
+            recon_tfr = self.stft(recon_signal)
             # get the phase:
             phase = np.angle(recon_tfr)
             # mix with magnitude:
             recon_tfr = mag * np.exp(1j * phase)
             # update the reconstructed signal:
-            recon_signal = self.stft_operator.istft(recon_tfr)
+            recon_signal = self.istft(recon_tfr)
 
         return recon_signal
 
@@ -159,19 +139,18 @@ class ADMM(PhaseRetrieval):
     """
 
     def __init__(self,
-                 stft_operator: STFT, iteration_pr: int = 10, *,
+                 iteration_pr: int = 10, *,
                  rho: float = 1e-5, eps: float = 1e-3, contrain_mode: str = "type1",
                  ):
         """
         Call the superclass __init__ and add class-specific parameters
 
-        :param stft_operator: STFT operator
         :param iteration_pr: Number of iteration in phase retrieval
         :param rho: ADMM parameter
         :param eps: ADMM parameter
         :param contrain_mode: Type of contrain mode (type1 or type2)
         """
-        super().__init__(stft_operator, iteration_pr)
+        super().__init__(iteration_pr)
         self.rho = rho
         self.eps = eps
         self.contrain_mode = contrain_mode
@@ -187,18 +166,17 @@ class ADMM(PhaseRetrieval):
 
         aux_var1 = 0
         # reconstruct the signal (initial signal):
-        recon_signal = self.stft_operator.istft(mag * np.exp(1j * phase))
+        recon_signal = self.istft(mag * np.exp(1j * phase))
 
         for ii in range(self.iteration_pr):
-            recon_tfr = self.stft_operator.stft(recon_signal)
+            recon_tfr = self.stft(recon_signal)
             h = recon_tfr + (1 / self.rho) * aux_var1
             ph = np.angle(h)
             aux_var_u = self.compute_prox(abs(h), mag)
             aux_var_z = aux_var_u * np.exp(1j * ph)
 
-            recon_signal = self.stft_operator.istft(
-                aux_var_z - (1 / self.rho) * aux_var1)
-            x_hat = self.stft_operator.stft(recon_signal)
+            recon_signal = self.istft(aux_var_z - (1 / self.rho) * aux_var1)
+            x_hat = self.stft(recon_signal)
             x_hat = x_hat[:128, :]
             aux_var1 = aux_var1 + self.rho * (x_hat - aux_var_z)
 

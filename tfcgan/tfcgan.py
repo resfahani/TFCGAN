@@ -8,7 +8,7 @@ from keras.models import load_model  # noqa
 from keras.engine.functional import Functional  # noqa
 
 from tfcgan.normalization import DataNormalization
-from tfcgan.signals import STFT, ADMM, GLA
+from tfcgan.signals import ADMM, GLA
 
 
 class TFCGAN:
@@ -96,11 +96,10 @@ class TFCGAN:
 
         :return: a tuple of two elements: the time axis and the synthetic waveforms data
         """
-        stft_operator = STFT()
         if mode == 'ADMM':
-            phase_retrieval = ADMM(stft_operator, iter_pr, rho=rho, eps=eps)
+            phase_retrieval = ADMM(iter_pr, rho=rho, eps=eps)
         elif mode == 'GLA':
-            phase_retrieval = GLA(stft_operator, iter_pr)
+            phase_retrieval = GLA(iter_pr)
         else:
             raise ValueError('mode should be in ("ADMM", "GLA")')
         # Generate the ground shaking using phase retrieval algorithm
