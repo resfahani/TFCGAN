@@ -36,25 +36,23 @@ type `tfcgan --help` in your terminal
 TFCGAN can also be used in your Python code:
 
 ```python
-from tfcgan import TFCGAN
+from tfcgan.tfcgan import get_ground_shaking_synthesis, get_fas_response
 # setup your parameters. Example:
 
 mag = 7
 dist = 100
 vs30 = 760
 num_waveforms = 10
-# Model
-tfcgan = TFCGAN()
 
 # Generate waveform data
-t, data = tfcgan.get_ground_shaking_synthesis(num_waveforms, mw=mag, ryhp=dist, vs30=vs30)
+t, data = get_ground_shaking_synthesis(num_waveforms, mw=mag, ryhp=dist, vs30=vs30)
 
 # t is a numpy array of length L ~= 4000
 # the dt (default 0.01) can be set as parameter in get_ground_shaking_synthesis
 # data is a Numpy Matrix of shape (num_waveforms, L).
 
 # Generate Fourier amplitude spectra
-freq, fas = TFCGAN.get_fas_response(t[1] - t[0], data)
+freq, fas = get_fas_response(t[1] - t[0], data)
 ```
 
 ## Citation

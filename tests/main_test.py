@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 
 from tfcgan.cli import run
-from tfcgan.tfcgan import TFCGAN
+from tfcgan.tfcgan import get_fas_response
 
 
 def test_cli_routine():
@@ -46,6 +46,6 @@ def test_cli_routine():
             assert data.shape == (N+1, L)
 
         time, data = data[0], data[1:]
-        freq, fas = TFCGAN.get_fas_response(time[1] - time[0], data)
+        freq, fas = get_fas_response(time[1] - time[0], data)
         assert len(freq) == len(time) // 2
         assert fas.shape == (data.shape[0], len(freq))

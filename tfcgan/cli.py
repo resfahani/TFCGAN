@@ -3,7 +3,7 @@ import sys
 import os
 import warnings
 import argparse
-from argparse import RawTextHelpFormatter
+from tfcgan import get_ground_shaking_synthesis, init_model
 
 import numpy as np
 
@@ -80,18 +80,16 @@ def run(arguments=None):
         # (here we see why names must match):
         args = parser.parse_args(arguments)
         verbose = not args.q
-        if verbose:
-            print('Loading TFCGAN model and libraries')
-        from tfcgan import TFCGAN
         try:
             if verbose:
-                print('Creating waveforms')
+                print('Loading TFCGAN model')
+                init_model()  # workaround to load model and reassure users
 
-            # Model
-            tfcgan = TFCGAN()
+            if verbose:
+                print('Generating waveforms')
 
             # Generate waveform data
-            t, data = tfcgan.get_ground_shaking_synthesis(
+            t, data = get_ground_shaking_synthesis(
                 args.num_waveforms, mw=args.magnitude, rhyp=args.distance,
                 vs30=args.vs30
             )
