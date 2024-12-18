@@ -107,7 +107,8 @@ class TFCGAN:
         tf_synth = self.get_tfr(mw=mw, rhyp=rhyp, vs30=vs30, num_waveforms=n_waveforms)
         # reconstruct the ground shaking using PR and generated TFR:
         gm_synth = phase_retrieval.apply_on_data(tf_synth)
-        time_axs = np.arange(0, gm_synth.shape[-1]) * stft_operator.dt
+        dt = 0.01
+        time_axs = np.arange(0, gm_synth.shape[-1]) * dt
         return time_axs, gm_synth
 
     @staticmethod

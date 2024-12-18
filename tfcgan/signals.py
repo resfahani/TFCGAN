@@ -16,8 +16,6 @@ class STFT:
     """Short Time Fourier Transform class"""
 
     def __init__(self,
-                 # FIXME: used only to return self.dt = 1/sf. What's the purpose then?
-                 sr: float = 100,
                  window_length: int = 128 + 64,
                  noverlap: int = 128 + 64 - 16,
                  n_fft: int = 256,
@@ -30,7 +28,6 @@ class STFT:
         :param noverlap: overlap length
         :param length:  of the signal
         """
-        self.sr = sr
         self.window_length = window_length
         self.noverlap = noverlap
         self.n_fft = n_fft
@@ -54,10 +51,6 @@ class STFT:
         _, rec_signal = istft(tfr, window=self.window, nperseg=self.window_length,
                               noverlap=self.noverlap, nfft=self.n_fft)
         return rec_signal
-
-    @property
-    def dt(self) -> float:
-        return 1 / self.sr
 
     @property
     def window(self) -> np.ndarray:
