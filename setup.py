@@ -12,13 +12,13 @@ setup(
     description=_README,
     url='https://github.com/resfahani/TFCGAN',
     packages=find_packages(exclude=['tests', 'tests.*']),
-    python_requires='==3.10.0',
+    python_requires='>=3.10.0,<3.11',
     # Minimal requirements, for a complete list see requirements-*.txt
     install_requires=[
-        'numpy==1.26.1',
+        # 'numpy==1.26.1',
         'tensorflow==2.11.1',
         # 'obspy==1.4.1',
-        'scipy==1.14.1'
+        'scipy>=1.14.1'
     ],
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
