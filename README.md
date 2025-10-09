@@ -14,12 +14,12 @@ Install **Python 3.10** (anaconda or venv), then:
 
 Standard install:
 ```commandline
-pip install --upgrade pip setuptools && pip install .
+pip install --upgrade pip setuptools && pip install -r ./requirements.txt && pip install .
 ```
 
 Developers install (install editable package and test libraries):
 ```commandline
-pip install --upgrade pip setuptools && pip install -e . && pip install pytest
+pip install --upgrade pip setuptools && pip install -r ./requirements.txt && pip install -e . && pip install pytest
 ```
 
 In the Python virtualenv and then:
