@@ -15,10 +15,12 @@ setup(
     python_requires='>=3.10.0,<3.11',
     # Minimal requirements, for a complete list see requirements-*.txt
     install_requires=[
+        'tensorflow>=2.11',
+        'scipy>=1.14'
         # 'numpy==1.26.1',
-        'tensorflow==2.11.1',
+        # 'tensorflow==2.11.1',
         # 'obspy==1.4.1',
-        'scipy>=1.14.1'
+        # 'scipy>=1.14.1'
     ],
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
